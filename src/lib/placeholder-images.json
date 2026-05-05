@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Abstract UI shapes and gradient background",
+      "imageUrl": "https://picsum.photos/seed/mahendra-hero/1920/1080",
+      "imageHint": "abstract gradient"
+    },
+    {
+      "id": "project-1",
+      "description": "Modern E-commerce Website Design",
+      "imageUrl": "https://picsum.photos/seed/project1/600/400",
+      "imageHint": "ecommerce website"
+    },
+    {
+      "id": "project-2",
+      "description": "SaaS Platform Dashboard",
+      "imageUrl": "https://picsum.photos/seed/project2/600/400",
+      "imageHint": "dashboard interface"
+    },
+    {
+      "id": "project-3",
+      "description": "Mobile Banking App UI",
+      "imageUrl": "https://picsum.photos/seed/project3/600/400",
+      "imageHint": "mobile app"
+    },
+    {
+      "id": "project-4",
+      "description": "Travel Booking Landing Page",
+      "imageUrl": "https://picsum.photos/seed/project4/600/400",
+      "imageHint": "landing page"
+    },
+    {
+      "id": "project-5",
+      "description": "Fitness Tracking App",
+      "imageUrl": "https://picsum.photos/seed/project5/600/400",
+      "imageHint": "fitness app"
+    },
+    {
+      "id": "project-6",
+      "description": "Architecture Portfolio Website",
+      "imageUrl": "https://picsum.photos/seed/project6/600/400",
+      "imageHint": "architecture website"
+    },
+    {
+      "id": "avatar",
+      "description": "Mahendra Professional Portrait",
+      "imageUrl": "https://picsum.photos/seed/mahendra-avatar/400/400",
+      "imageHint": "professional man"
+    }
+  ]
 }
