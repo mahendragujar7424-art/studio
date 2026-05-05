@@ -1,0 +1,144 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * CRM SECURITY RULES PHILOSOPHY
+     * Core Philosophy: This ruleset implements a robust Role-Based Access Control (RBAC) and Database Access Control (DBAC) 
+     * model. Administrative privileges are managed via a dedicated marker collection for high-performance verification.
+     * 
+     * Data Structure: 
+     * - /users/{userId}: User profiles and roles.
+     * - /roles_admin/{adminId}: Marker collection for Admin status.
+     * - /tasks/{taskId}: CRM tasks, denormalized with developer and client IDs for authorization independence.
+     * - /tasks/{taskId}/comments/{commentId}: Task-specific updates and discussions.
+     * 
+     * Key Security Decisions:
+     * 1. Admin DBAC: We use an 'exists' check on /roles_admin for all administrative operations to ensure atomicity.
+     * 2. Denormalization for Authorization: Tasks contain 'assignedDeveloperId' and 'assignedClientId' directly. 
+     *    This allows rules to verify access without performing multiple document lookups.
+     * 3. Structural Segregation: Administrative markers are kept in a separate root collection to prevent 
+     *    unauthorized elevation of privileges.
+     * 4. Relational Integrity: On task and comment creation, we enforce that the internal 'createdById' or 'userId' 
+     *    matches the authenticated user's UID.
+     */
+
+    // --- GLOBAL HELPER FUNCTIONS ---
+
+    /** @description Checks if the user is authenticated. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the user is an Admin using the DBAC marker collection. */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /** @description Checks if the provided UID matches the authenticated user. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Combined ownership and existence check for update/delete operations. */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    /** @description Helper to get user document data. */
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    /** @description Checks if the user is the assigned Developer or Client for a specific Task document. */
+    function isTaskMember(taskData) {
+      return isSignedIn() && (
+        taskData.assignedDeveloperId == request.auth.uid || 
+        taskData.assignedClientId == request.auth.uid
+      );
+    }
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Rules for the User profiles. Admins manage all; users manage their own profile.
+     * @path /users/{userId}
+     * @allow (get) If user is authenticated.
+     * @allow (create) If Admin or if user is creating their own initial profile.
+     * @deny (list) If not an Admin (Listing users is restricted to prevent information leakage).
+     * @principle Path-based ownership and DBAC for administrative management.
+     */
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isAdmin() || isOwner(userId);
+      allow update: if isAdmin() || isOwner(userId);
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Rules for the Admin role marker collection. Extremely restricted.
+     * @path /roles_admin/{adminId}
+     * @allow (all) Only if the authenticated user is an Admin (bootstrapping requires manual DB entry).
+     * @deny (all) To any non-Admin user.
+     * @principle Segregation of privilege markers from general user data.
+     */
+    match /roles_admin/{adminId} {
+      allow get, list, create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Rules for Tasks. Accessible by Admins, the assigned Developer, or the assigned Client.
+     * @path /tasks/{taskId}
+     * @allow (get) If Admin, assigned Developer, or assigned Client.
+     * @allow (create) If Admin, or if a Developer is creating a task and assigns themselves.
+     * @allow (update) If Admin or the assigned Developer (Clients cannot update tasks).
+     * @deny (delete) To anyone who is not an Admin.
+     * @principle Authorization independence via denormalized assignment fields.
+     */
+    match /tasks/{taskId} {
+      // Note: list is restricted to Admins to comply with P6 (No resource usage in list rules).
+      // In practice, developers would query tasks via specific indexed fields.
+      allow list: if isAdmin();
+      
+      allow get: if isAdmin() || isTaskMember(resource.data);
+      
+      allow create: if (isAdmin() || getUserData(request.auth.uid).role == 'Developer') 
+                    && request.resource.data.createdById == request.auth.uid;
+      
+      allow update: if resource != null && (isAdmin() || (
+                      getUserData(request.auth.uid).role == 'Developer' && 
+                      resource.data.assignedDeveloperId == request.auth.uid
+                    )) && request.resource.data.createdById == resource.data.createdById; // Immutable creator
+      
+      allow delete: if resource != null && isAdmin();
+    }
+
+    /**
+     * @description Rules for Task Comments. Requires checking the parent task for authorization.
+     * @path /tasks/{taskId}/comments/{commentId}
+     * @allow (get) If user has access to the parent task.
+     * @allow (create) If user is a member of the parent task and stamps their UID correctly.
+     * @allow (update, delete) If Admin or the original author of the comment.
+     * @principle Hierarchical lookup-based authorization for subcollections.
+     */
+    match /tasks/{taskId}/comments/{commentId} {
+      // Helper for subcollection lookup
+      function getParentTask() {
+        return get(/databases/$(database)/documents/tasks/$(taskId)).data;
+      }
+
+      allow list: if isAdmin(); // Restricted list per P6
+      
+      allow get: if isAdmin() || isTaskMember(getParentTask());
+      
+      allow create: if (isAdmin() || isTaskMember(getParentTask())) 
+                    && request.resource.data.userId == request.auth.uid;
+      
+      allow update: if resource != null && (isAdmin() || isExistingOwner(resource.data.userId))
+                    && request.resource.data.userId == resource.data.userId; // Immutable author
+      
+      allow delete: if resource != null && (isAdmin() || isExistingOwner(resource.data.userId));
+    }
+  }
+}
