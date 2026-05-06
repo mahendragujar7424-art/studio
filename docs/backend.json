@@ -68,7 +68,12 @@
         },
         "description": {
           "type": "string",
-          "description": "A brief description of the team's purpose."
+          "description": "A brief description of the team's purpose (Project Name)."
+        },
+        "developerIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Array of user IDs for developers assigned to this team."
         },
         "createdAt": {
           "type": "string",
@@ -91,13 +96,14 @@
         "progress": { "type": "number" },
         "priority": { "type": "string" },
         "assignedDeveloperId": { "type": "string" },
+        "assignedTeamId": { "type": "string" },
         "assignedClientId": { "type": "string" },
         "createdById": { "type": "string" },
         "dueDate": { "type": "string", "format": "date" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "title", "status", "assignedDeveloperId", "assignedClientId", "createdById", "createdAt", "updatedAt"]
+      "required": ["id", "title", "status", "assignedClientId", "createdById", "createdAt", "updatedAt"]
     },
     "Comment": {
       "$schema": "http://json-schema.org/draft-07/schema#",

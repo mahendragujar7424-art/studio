@@ -19,7 +19,9 @@ import {
   User as UserIcon,
   TriangleAlert,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  Briefcase,
+  Users
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -52,7 +54,9 @@ function TasksContent() {
   const [newTitle, setNewTitle] = React.useState('');
   const [newDesc, setNewDesc] = React.useState('');
   const [newPriority, setNewPriority] = React.useState<string>(TASK_PRIORITY.MEDIUM);
+  const [newAssignmentType, setNewAssignmentType] = React.useState<'individual' | 'team'>('individual');
   const [newDeveloper, setNewDeveloper] = React.useState('');
+  const [newTeam, setNewTeam] = React.useState('');
   const [newClient, setNewClient] = React.useState('');
   const [newDueDate, setNewDueDate] = React.useState('');
 
@@ -73,15 +77,24 @@ function TasksContent() {
     return query(collection(firestore, 'users'), where('role', '==', ROLES.CLIENT));
   }, [firestore, profile?.role]);
 
+  const teamsQuery = useMemoFirebase(() => {
+    if (!firestore || profile?.role !== ROLES.ADMIN) return null;
+    return collection(firestore, 'teams');
+  }, [firestore, profile?.role]);
+
   const { data: developers } = useCollection(developersQuery);
   const { data: clients } = useCollection(clientsQuery);
+  const { data: teams } = useCollection(teamsQuery);
 
   const tasksQuery = useMemoFirebase(() => {
     if (!firestore || !profile || !user?.uid) return null;
     const tasksRef = collection(firestore, 'tasks');
     
     if (profile.role === ROLES.ADMIN) return tasksRef;
-    if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('assignedDeveloperId', '==', user.uid));
+    if (profile.role === ROLES.DEVELOPER) {
+      // Developers can see tasks assigned to them OR their team
+      return query(tasksRef, where('status', '!=', 'ARCHIVED'));
+    }
     if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid));
     return null;
   }, [firestore, profile, user?.uid]);
@@ -103,7 +116,8 @@ function TasksContent() {
         status: TASK_STATUS.PENDING,
         progress: 0,
         priority: newPriority,
-        assignedDeveloperId: newDeveloper,
+        assignedDeveloperId: newAssignmentType === 'individual' ? newDeveloper : null,
+        assignedTeamId: newAssignmentType === 'team' ? newTeam : null,
         assignedClientId: newClient,
         createdById: user.uid,
         dueDate: newDueDate,
@@ -112,18 +126,34 @@ function TasksContent() {
       });
 
       setIsCreateOpen(false);
-      setNewTitle('');
-      setNewDesc('');
+      resetTaskForm();
       toast({ title: "Task Initialized", description: "Project assignment successful." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
+  const resetTaskForm = () => {
+    setNewTitle('');
+    setNewDesc('');
+    setNewDeveloper('');
+    setNewTeam('');
+    setNewClient('');
+    setNewDueDate('');
+  };
+
   const filteredTasks = tasks?.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) || 
                           t.description.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === 'all' ? t.status !== TASK_STATUS.ARCHIVED : t.status === filterStatus;
+    
+    // Additional role-based filtering for developers (since complex Firestore OR queries are limited)
+    if (profile?.role === ROLES.DEVELOPER) {
+      const isIndivAssign = t.assignedDeveloperId === user?.uid;
+      const isTeamAssign = t.assignedTeamId === profile.teamId;
+      if (!isIndivAssign && !isTeamAssign) return false;
+    }
+
     return matchesSearch && matchesStatus;
   });
 
@@ -139,8 +169,8 @@ function TasksContent() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold font-headline tracking-tight">Project Management</h1>
-          <p className="text-muted-foreground mt-2 text-lg">Central hub for tracking task progression and assignments.</p>
+          <h1 className="text-4xl font-bold font-headline tracking-tight">Workspace Tasks</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Central hub for tracking delivery milestones and team assignments.</p>
         </div>
         {profile?.role === ROLES.ADMIN && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -151,26 +181,27 @@ function TasksContent() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] rounded-[2.5rem] p-8">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold">Create New Task</DialogTitle>
+                <DialogTitle className="text-2xl font-bold">Initialize Project Task</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreateTask} className="space-y-6 pt-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Title</Label>
-                  <Input placeholder="Task name..." value={newTitle} onChange={e => setNewTitle(e.target.value)} required className="h-12 rounded-xl" />
+                  <Label className="text-xs font-bold uppercase">Project Title</Label>
+                  <Input placeholder="Website Redesign / App Launch" value={newTitle} onChange={e => setNewTitle(e.target.value)} required className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Description</Label>
+                  <Label className="text-xs font-bold uppercase">Requirements Brief</Label>
                   <textarea 
-                    placeholder="Requirements..." 
+                    placeholder="Provide clear technical requirements..." 
                     className="w-full h-32 rounded-xl bg-secondary/20 p-4 border-2 border-transparent focus:border-primary/50 outline-none"
                     value={newDesc}
                     onChange={e => setNewDesc(e.target.value)}
                     required
                   />
                 </div>
+                
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase">Priority</Label>
+                    <Label className="text-xs font-bold uppercase">Priority Level</Label>
                     <Select value={newPriority} onValueChange={setNewPriority}>
                       <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -181,22 +212,38 @@ function TasksContent() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase">Due Date</Label>
-                    <Input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} required className="h-12 rounded-xl" />
-                  </div>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase">Developer</Label>
-                    <Select value={newDeveloper} onValueChange={setNewDeveloper}>
-                      <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Assign Dev" /></SelectTrigger>
+                    <Label className="text-xs font-bold uppercase">Assignment Model</Label>
+                    <Select value={newAssignmentType} onValueChange={(v: any) => setNewAssignmentType(v)}>
+                      <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {developers?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                        <SelectItem value="individual">Individual Developer</SelectItem>
+                        <SelectItem value="team">Organizational Team</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase">Client</Label>
+                    <Label className="text-xs font-bold uppercase">{newAssignmentType === 'individual' ? 'Developer' : 'Production Team'}</Label>
+                    {newAssignmentType === 'individual' ? (
+                      <Select value={newDeveloper} onValueChange={setNewDeveloper}>
+                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Dev" /></SelectTrigger>
+                        <SelectContent>
+                          {developers?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Select value={newTeam} onValueChange={setNewTeam}>
+                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Team" /></SelectTrigger>
+                        <SelectContent>
+                          {teams?.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase">Stakeholder (Client)</Label>
                     <Select value={newClient} onValueChange={setNewClient}>
                       <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Assign Client" /></SelectTrigger>
                       <SelectContent>
@@ -205,8 +252,14 @@ function TasksContent() {
                     </Select>
                   </div>
                 </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase">Target Delivery Date</Label>
+                  <Input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} required className="h-12 rounded-xl" />
+                </div>
+
                 <DialogFooter>
-                  <Button type="submit" className="w-full h-14 rounded-2xl font-bold">Assign Project</Button>
+                  <Button type="submit" className="w-full h-14 rounded-2xl font-bold">Confirm & Assign</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -218,7 +271,7 @@ function TasksContent() {
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input 
-            placeholder="Filter tasks..." 
+            placeholder="Search projects..." 
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
@@ -230,11 +283,11 @@ function TasksContent() {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Active Only</SelectItem>
+            <SelectItem value="all">Active Deliveries</SelectItem>
             <SelectItem value={TASK_STATUS.PENDING}>Pending</SelectItem>
             <SelectItem value={TASK_STATUS.IN_PROGRESS}>In Progress</SelectItem>
             <SelectItem value={TASK_STATUS.COMPLETED}>Completed</SelectItem>
-            <SelectItem value={TASK_STATUS.ARCHIVED}>Archived</SelectItem>
+            <SelectItem value={TASK_STATUS.ARCHIVED}>Archives</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -252,6 +305,11 @@ function TasksContent() {
                     <Badge variant="secondary" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase">
                       {task.status}
                     </Badge>
+                    {task.assignedTeamId && (
+                      <Badge variant="outline" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase bg-primary/5 text-primary border-primary/20">
+                        Team Assignment
+                      </Badge>
+                    )}
                   </div>
                   <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors">{task.title}</CardTitle>
                 </div>
@@ -263,29 +321,33 @@ function TasksContent() {
               </div>
             </CardHeader>
             <CardContent className="p-8 pt-0 space-y-6">
-              <p className="text-muted-foreground line-clamp-2">{task.description}</p>
+              <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed">{task.description}</p>
               
               <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
-                  <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Progress</span>
+                <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground tracking-widest">
+                  <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Live Progress</span>
                   <span>{task.progress || 0}%</span>
                 </div>
                 <Progress value={task.progress || 0} className="h-2" />
               </div>
 
               <div className="flex items-center justify-between py-4 border-y border-dashed">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  {task.dueDate ? format(new Date(task.dueDate), 'MMM dd, yyyy') : 'No date'}
+                <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase">
+                  <Calendar className="h-3.5 w-3.5 text-primary" />
+                  Due: {task.dueDate ? format(new Date(task.dueDate), 'MMM dd') : 'N/A'}
                 </div>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <UserIcon className="h-4 w-4 text-primary" />
-                  {profile?.role === ROLES.ADMIN ? (developers?.find(d => d.id === task.assignedDeveloperId)?.name || 'N/A') : (task.assignedDeveloperId === user?.uid ? profile?.name : 'Assigned')}
+                <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase">
+                  {task.assignedTeamId ? <Users className="h-3.5 w-3.5 text-primary" /> : <UserIcon className="h-3.5 w-3.5 text-primary" />}
+                  {profile?.role === ROLES.ADMIN ? (
+                    task.assignedTeamId ? 
+                    (teams?.find(t => t.id === task.assignedTeamId)?.name || 'Team') : 
+                    (developers?.find(d => d.id === task.assignedDeveloperId)?.name || 'N/A')
+                  ) : 'Assigned'}
                 </div>
               </div>
-              <Button asChild variant="ghost" className="w-full rounded-xl font-bold">
+              <Button asChild variant="ghost" className="w-full rounded-xl font-bold hover:bg-primary/5">
                 <Link href={`/dashboard/tasks/${task.id}`}>
-                  {task.status === TASK_STATUS.ARCHIVED ? 'View Details' : 'Manage & Feedback'} <ArrowRight className="h-4 w-4 ml-2" />
+                  {task.status === TASK_STATUS.ARCHIVED ? 'Review Records' : 'Open Workspace'} <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
               </Button>
             </CardContent>
@@ -295,7 +357,7 @@ function TasksContent() {
         {(!filteredTasks || filteredTasks.length === 0) && !isTasksLoading && (
           <div className="lg:col-span-2 py-20 text-center space-y-4">
             <TriangleAlert className="h-10 w-10 text-muted-foreground mx-auto" />
-            <p className="font-bold">No tasks matched your criteria.</p>
+            <p className="font-bold">Workspace is currently clear.</p>
           </div>
         )}
       </div>

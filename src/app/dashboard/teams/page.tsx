@@ -4,20 +4,22 @@
 import * as React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, addDoc } from 'firebase/firestore';
+import { collection, doc, query, where, addDoc, updateDoc } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { ROLES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Users, 
   Plus, 
   Search, 
   Briefcase, 
-  MoreVertical,
   UserPlus,
-  ShieldAlert
+  ShieldAlert,
+  Loader2,
+  Check
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -31,12 +33,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function TeamsPage() {
   const { user: currentUser } = useUser();
@@ -44,8 +41,10 @@ export default function TeamsPage() {
   const { toast } = useToast();
 
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [newTeamName, setNewTeamName] = React.useState('');
   const [newTeamDesc, setNewTeamDesc] = React.useState('');
+  const [selectedDeveloperIds, setSelectedDeveloperIds] = React.useState<string[]>([]);
 
   const currentUserRef = useMemoFirebase(() => {
     if (!firestore || !currentUser?.uid) return null;
@@ -68,30 +67,53 @@ export default function TeamsPage() {
 
   const { data: developers } = useCollection(devsQuery);
 
+  const toggleDeveloperSelection = (id: string) => {
+    setSelectedDeveloperIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
 
+    setIsSubmitting(true);
     try {
-      await addDoc(collection(firestore, 'teams'), {
+      const teamRef = await addDoc(collection(firestore, 'teams'), {
         name: newTeamName,
         description: newTeamDesc,
+        developerIds: selectedDeveloperIds,
         createdAt: new Date().toISOString(),
       });
-      toast({ title: "Team Created", description: `"${newTeamName}" is now active.` });
+
+      // Also update each user's teamId for security rule checks
+      for (const devId of selectedDeveloperIds) {
+        const devRef = doc(firestore, 'users', devId);
+        updateDocumentNonBlocking(devRef, { teamId: teamRef.id });
+      }
+
+      toast({ title: "Team Launched", description: `"${newTeamName}" with ${selectedDeveloperIds.length} developers.` });
       setIsCreateOpen(false);
       setNewTeamName('');
       setNewTeamDesc('');
+      setSelectedDeveloperIds([]);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const assignDevToTeam = (devId: string, teamId: string | null) => {
+  const removeDevFromTeam = (devId: string, teamId: string, currentTeamDevs: string[]) => {
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
-    const devRef = doc(firestore, 'users', devId);
-    updateDocumentNonBlocking(devRef, { teamId });
-    toast({ title: "Assignment Updated", description: "Team membership has been updated." });
+    
+    const teamRef = doc(firestore, 'teams', teamId);
+    const updatedDevList = currentTeamDevs.filter(id => id !== devId);
+    
+    updateDocumentNonBlocking(teamRef, { developerIds: updatedDevList });
+    updateDocumentNonBlocking(doc(firestore, 'users', devId), { teamId: null });
+    
+    toast({ title: "Assignment Removed", description: "Developer unassigned from team." });
   };
 
   if (profile?.role !== ROLES.ADMIN) {
@@ -100,7 +122,7 @@ export default function TeamsPage() {
         <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
           <ShieldAlert className="h-16 w-16 text-destructive/50" />
           <h1 className="text-2xl font-bold font-headline">Access Denied</h1>
-          <p className="text-muted-foreground">Only administrators can manage organizational teams.</p>
+          <p className="text-muted-foreground">Organizational control is restricted to administrators.</p>
         </div>
       </DashboardLayout>
     );
@@ -111,30 +133,50 @@ export default function TeamsPage() {
       <div className="space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight">Organization Teams</h1>
-            <p className="text-muted-foreground mt-2 text-lg">Structure your workforce and assign developers.</p>
+            <h1 className="text-4xl font-bold font-headline tracking-tight">Team Orchestration</h1>
+            <p className="text-muted-foreground mt-2 text-lg">Build engineering units and assign technical staff.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
-                <Plus className="h-5 w-5" /> Create New Team
+                <Plus className="h-5 w-5" /> Assemble Team
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold font-headline">New Team</DialogTitle>
+                <DialogTitle className="text-2xl font-bold font-headline">New Team Formation</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleCreateTeam} className="space-y-4 pt-4">
+              <form onSubmit={handleCreateTeam} className="space-y-6 pt-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Team Name</Label>
-                  <Input placeholder="Engineering, Design, etc." value={newTeamName} onChange={e => setNewTeamName(e.target.value)} required className="h-12 rounded-xl" />
+                  <Label className="text-xs font-bold uppercase">Team / Project Name</Label>
+                  <Input placeholder="Engineering Alpha" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} required className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Description</Label>
-                  <Input placeholder="Team focus..." value={newTeamDesc} onChange={e => setNewTeamDesc(e.target.value)} className="h-12 rounded-xl" />
+                  <Label className="text-xs font-bold uppercase">Focus / Description</Label>
+                  <Input placeholder="Main product development" value={newTeamDesc} onChange={e => setNewTeamDesc(e.target.value)} className="h-12 rounded-xl" />
                 </div>
+                
+                <div className="space-y-3">
+                  <Label className="text-xs font-bold uppercase">Assign Developers</Label>
+                  <ScrollArea className="h-48 rounded-xl border-2 p-4 bg-secondary/5">
+                    <div className="space-y-3">
+                      {developers?.map((dev) => (
+                        <div key={dev.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer" onClick={() => toggleDeveloperSelection(dev.id)}>
+                          <Checkbox checked={selectedDeveloperIds.includes(dev.id)} onCheckedChange={() => toggleDeveloperSelection(dev.id)} />
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold">{dev.name}</span>
+                            <span className="text-[10px] text-muted-foreground">{dev.email}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+
                 <DialogFooter className="pt-4">
-                  <Button type="submit" className="w-full h-14 rounded-2xl font-bold">Launch Team</Button>
+                  <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Launch Team"}
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -143,9 +185,9 @@ export default function TeamsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {teams?.map((team) => {
-            const teamDevs = developers?.filter(d => d.teamId === team.id) || [];
+            const teamDevs = developers?.filter(d => team.developerIds?.includes(d.id)) || [];
             return (
-              <Card key={team.id} className="border-none shadow-sm bg-white rounded-3xl overflow-hidden">
+              <Card key={team.id} className="border-none shadow-sm bg-white rounded-3xl overflow-hidden group hover:shadow-md transition-all">
                 <CardHeader className="p-8 pb-4">
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
@@ -153,28 +195,28 @@ export default function TeamsPage() {
                       <CardDescription>{team.description}</CardDescription>
                     </div>
                     <Badge variant="secondary" className="rounded-full bg-primary/5 text-primary border-none px-4 py-1">
-                      {teamDevs.length} Members
+                      {teamDevs.length} Staff
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="p-8 pt-4 space-y-6">
                   <div className="space-y-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Assigned Developers</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Team Roster</p>
                     <div className="flex flex-wrap gap-2">
                       {teamDevs.map(dev => (
-                        <Badge key={dev.id} variant="outline" className="rounded-xl px-3 py-1.5 flex items-center gap-2 border-2">
+                        <Badge key={dev.id} variant="outline" className="rounded-xl px-3 py-1.5 flex items-center gap-2 border-2 group/badge">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
-                          {dev.name}
+                          <span className="text-xs font-bold">{dev.name}</span>
                           <button 
-                            onClick={() => assignDevToTeam(dev.id, null)}
-                            className="ml-1 hover:text-destructive transition-colors"
+                            onClick={() => removeDevFromTeam(dev.id, team.id, team.developerIds)}
+                            className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
                           >
                             ×
                           </button>
                         </Badge>
                       ))}
                       {teamDevs.length === 0 && (
-                        <p className="text-xs italic text-muted-foreground">No developers assigned yet.</p>
+                        <p className="text-xs italic text-muted-foreground">Unassigned workspace.</p>
                       )}
                     </div>
                   </div>
@@ -183,25 +225,10 @@ export default function TeamsPage() {
                     <span className="text-[10px] font-bold text-muted-foreground uppercase">
                       Active since {format(new Date(team.createdAt), 'MMM yyyy')}
                     </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-10 px-4 font-bold gap-2 rounded-xl">
-                          <UserPlus className="h-4 w-4" /> Add Member
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="rounded-xl p-2 w-56">
-                        {developers?.filter(d => !d.teamId).map(dev => (
-                          <DropdownMenuItem key={dev.id} onClick={() => assignDevToTeam(dev.id, team.id)} className="rounded-lg">
-                            {dev.name}
-                          </DropdownMenuItem>
-                        ))}
-                        {developers?.filter(d => !d.teamId).length === 0 && (
-                          <div className="p-2 text-xs italic text-muted-foreground text-center">
-                            No unassigned developers found.
-                          </div>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-2 text-primary">
+                       <Briefcase className="h-4 w-4" />
+                       <span className="text-[10px] font-bold uppercase">Production Ready</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

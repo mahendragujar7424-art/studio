@@ -22,9 +22,11 @@ service cloud.firestore {
     }
 
     function isTaskMember(taskData) {
+      let userData = getUserData(request.auth.uid);
       return isSignedIn() && (
         taskData.assignedDeveloperId == request.auth.uid || 
-        taskData.assignedClientId == request.auth.uid
+        taskData.assignedClientId == request.auth.uid ||
+        (taskData.assignedTeamId != null && taskData.assignedTeamId == userData.teamId)
       );
     }
 
@@ -60,11 +62,12 @@ service cloud.firestore {
     match /tasks/{taskId} {
       allow list: if isSignedIn();
       allow get: if isAdmin() || isTaskMember(resource.data);
-      allow create: if isAdmin() || (getUserData(request.auth.uid).role == 'Developer' && request.resource.data.createdById == request.auth.uid);
+      allow create: if isAdmin();
       allow update: if resource != null && (isAdmin() || (
                       getUserData(request.auth.uid).role == 'Developer' && 
-                      resource.data.assignedDeveloperId == request.auth.uid
-                    )) && request.resource.data.createdById == resource.data.createdById;
+                      (resource.data.assignedDeveloperId == request.auth.uid || 
+                       resource.data.assignedTeamId == getUserData(request.auth.uid).teamId)
+                    ));
       allow delete: if resource != null && isAdmin();
     }
 
@@ -75,7 +78,7 @@ service cloud.firestore {
       allow list: if isAdmin() || isTaskMember(getParentTask());
       allow get: if isAdmin() || isTaskMember(getParentTask());
       allow create: if (isAdmin() || isTaskMember(getParentTask())) && request.resource.data.userId == request.auth.uid;
-      allow update: if resource != null && (isAdmin() || isOwner(resource.data.userId)) && request.resource.data.userId == resource.data.userId;
+      allow update: if resource != null && (isAdmin() || isOwner(resource.data.userId));
       allow delete: if resource != null && (isAdmin() || isOwner(resource.data.userId));
     }
   }
