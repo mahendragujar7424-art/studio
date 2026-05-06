@@ -50,17 +50,21 @@ service cloud.firestore {
     }
 
     match /roles_admin/{adminId} {
-      // Allow creation of admin marker for the initial setup admin or by existing admins
+      // Allow any signed-in user to 'get' a marker to avoid rule deadlocks during isAdmin() checks
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
       allow create: if isAdmin() || (
         request.auth.uid == adminId && 
         get(/databases/$(database)/documents/users/$(adminId)).data.email == 'admin@crm.com'
       );
-      allow get, list, update, delete: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     match /tasks/{taskId} {
-      allow list: if isAdmin() || isSignedIn();
+      // Allow signed-in users to list tasks. The query will be naturally constrained by the app's filters.
+      allow list: if isSignedIn();
       
+      // Strict access for individual document reads
       allow get: if isAdmin() || isTaskMember(resource.data);
       
       allow create: if (isAdmin() || getUserData(request.auth.uid).role == 'Developer') 
