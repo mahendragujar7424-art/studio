@@ -1,11 +1,12 @@
 
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'Mahendra Design Studio | Creative Web Designer',
-  description: 'Portfolio of Mahendra, Creative Web Designer at Waplia Digital Solutions.',
+  title: 'CloudCRM | Professional Task Management',
+  description: 'A comprehensive CRM for teams to manage tasks, developers, and client relationships.',
 };
 
 export default function RootLayout({
@@ -15,14 +16,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-body antialiased selection:bg-primary/30 selection:text-primary">
-        {children}
-        <Toaster />
+      <body className="font-body antialiased selection:bg-primary/30 selection:text-primary min-h-screen">
+        <FirebaseClientProvider>
+          {children}
+          <Toaster />
+        </FirebaseClientProvider>
       </body>
     </html>
   );

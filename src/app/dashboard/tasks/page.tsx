@@ -1,0 +1,331 @@
+
+'use client';
+
+import * as React from 'react';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, where, serverTimestamp, addDoc, updateDoc } from 'firebase/firestore';
+import { ROLES, TASK_STATUS, TASK_PRIORITY } from '@/lib/constants';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  MoreVertical, 
+  Calendar, 
+  User as UserIcon,
+  Tag,
+  CheckCircle2,
+  Clock,
+  AlertTriangle
+} from 'lucide-react';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+
+export default function TasksPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const [search, setSearch] = React.useState('');
+  const [filterStatus, setFilterStatus] = React.useState<string>('all');
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+
+  // New task form state
+  const [newTitle, setNewTitle] = React.useState('');
+  const [newDesc, setNewDesc] = React.useState('');
+  const [newPriority, setNewPriority] = React.useState<string>(TASK_PRIORITY.MEDIUM);
+  const [newDeveloper, setNewDeveloper] = React.useState('');
+  const [newClient, setNewClient] = React.useState('');
+  const [newDueDate, setNewDueDate] = React.useState('');
+
+  const userRef = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user?.uid]);
+
+  const { data: profile } = useDoc(userRef);
+
+  // Users for assignment (for Admin)
+  const developersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
+  }, [firestore]);
+
+  const clientsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'users'), where('role', '==', ROLES.CLIENT));
+  }, [firestore]);
+
+  const { data: developers } = useCollection(developersQuery);
+  const { data: clients } = useCollection(clientsQuery);
+
+  const tasksQuery = useMemoFirebase(() => {
+    if (!firestore || !profile || !user?.uid) return null;
+    const tasksRef = collection(firestore, 'tasks');
+    if (profile.role === ROLES.ADMIN) return tasksRef;
+    if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('assignedDeveloperId', '==', user.uid));
+    if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid));
+    return null;
+  }, [firestore, profile, user?.uid]);
+
+  const { data: tasks, isLoading: isTasksLoading } = useCollection(tasksQuery);
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!firestore || !user?.uid) return;
+
+    try {
+      await addDoc(collection(firestore, 'tasks'), {
+        title: newTitle,
+        description: newDesc,
+        status: TASK_STATUS.PENDING,
+        priority: newPriority,
+        assignedDeveloperId: newDeveloper,
+        assignedClientId: newClient,
+        createdById: user.uid,
+        dueDate: newDueDate,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      setIsCreateOpen(false);
+      setNewTitle('');
+      setNewDesc('');
+      toast({ title: "Task Created", description: "Successfully assigned and logged." });
+    } catch (error: any) {
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleUpdateStatus = async (taskId: string, newStatus: string) => {
+    if (!firestore) return;
+    try {
+      await updateDoc(doc(firestore, 'tasks', taskId), {
+        status: newStatus,
+        updatedAt: new Date().toISOString(),
+      });
+      toast({ title: "Status Updated", description: `Task is now ${newStatus}` });
+    } catch (error: any) {
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const filteredTasks = tasks?.filter(t => {
+    const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) || 
+                          t.description.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || t.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getPriorityColor = (p: string) => {
+    switch (p) {
+      case TASK_PRIORITY.HIGH: return "text-red-600 bg-red-50 border-red-200";
+      case TASK_PRIORITY.MEDIUM: return "text-blue-600 bg-blue-50 border-blue-200";
+      default: return "text-gray-600 bg-gray-50 border-gray-200";
+    }
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <h1 className="text-4xl font-bold font-headline tracking-tight">Tasks Management</h1>
+            <p className="text-muted-foreground mt-2 text-lg">Manage, assign and monitor project lifecycles.</p>
+          </div>
+          {profile?.role !== ROLES.CLIENT && (
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all">
+                  <Plus className="h-5 w-5" /> New Assignment
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px] rounded-[2.5rem] p-8">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold font-headline">Create New Task</DialogTitle>
+                  <CardDescription>Assign specific goals to developers and clients.</CardDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateTask} className="space-y-6 pt-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-widest">Title</Label>
+                    <Input placeholder="e.g. Implement Auth" value={newTitle} onChange={e => setNewTitle(e.target.value)} required className="h-12 rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-widest">Description</Label>
+                    <textarea 
+                      placeholder="Detailed requirements..." 
+                      className="w-full h-32 rounded-xl bg-secondary/20 p-4 border-2 border-transparent focus:border-primary/50 outline-none transition-all"
+                      value={newDesc}
+                      onChange={e => setNewDesc(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest">Priority</Label>
+                      <Select value={newPriority} onValueChange={setNewPriority}>
+                        <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={TASK_PRIORITY.LOW}>Low</SelectItem>
+                          <SelectItem value={TASK_PRIORITY.MEDIUM}>Medium</SelectItem>
+                          <SelectItem value={TASK_PRIORITY.HIGH}>High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest">Due Date</Label>
+                      <Input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} required className="h-12 rounded-xl" />
+                    </div>
+                  </div>
+                  {profile?.role === ROLES.ADMIN && (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-bold uppercase tracking-widest">Developer</Label>
+                        <Select value={newDeveloper} onValueChange={setNewDeveloper}>
+                          <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Dev" /></SelectTrigger>
+                          <SelectContent>
+                            {developers?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-bold uppercase tracking-widest">Client</Label>
+                        <Select value={newClient} onValueChange={setNewClient}>
+                          <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Client" /></SelectTrigger>
+                          <SelectContent>
+                            {clients?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button type="submit" className="w-full h-14 rounded-2xl font-bold text-lg">Initialize Assignment</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input 
+              placeholder="Search by title or description..." 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
+            />
+          </div>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-full sm:w-48 h-14 rounded-2xl border-none bg-white shadow-sm font-medium">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value={TASK_STATUS.PENDING}>Pending</SelectItem>
+              <SelectItem value={TASK_STATUS.IN_PROGRESS}>In Progress</SelectItem>
+              <SelectItem value={TASK_STATUS.COMPLETED}>Completed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Task Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {filteredTasks?.map((task) => (
+            <Card key={task.id} className="border-none shadow-sm bg-white rounded-3xl overflow-hidden group hover:shadow-xl hover:shadow-primary/5 transition-all">
+              <CardHeader className="p-8 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn("rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-wider border", getPriorityColor(task.priority))}>
+                        {task.priority} Priority
+                      </Badge>
+                      <Badge variant="secondary" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-wider">
+                        {task.status}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-2xl font-bold font-headline group-hover:text-primary transition-colors">{task.title}</CardTitle>
+                  </div>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 space-y-6">
+                <p className="text-muted-foreground line-clamp-2 leading-relaxed">{task.description}</p>
+                
+                <div className="grid grid-cols-2 gap-4 py-4 border-y border-dashed">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span className="font-medium">{task.dueDate ? format(new Date(task.dueDate), 'MMM dd, yyyy') : 'No Date'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <UserIcon className="h-4 w-4 text-primary" />
+                    <span className="font-medium truncate">{developers?.find(d => d.id === task.assignedDeveloperId)?.name || 'Unassigned'}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex -space-x-2">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="h-8 w-8 rounded-full border-2 border-white bg-primary/10 flex items-center justify-center text-[10px] font-bold">
+                        {i === 1 ? 'D' : 'C'}
+                      </div>
+                    ))}
+                  </div>
+
+                  {profile?.role !== ROLES.CLIENT && (
+                    <div className="flex gap-2">
+                      {task.status !== TASK_STATUS.IN_PROGRESS && (
+                        <Button size="sm" variant="outline" className="rounded-full font-bold text-xs" onClick={() => handleUpdateStatus(task.id, TASK_STATUS.IN_PROGRESS)}>
+                          <Clock className="h-3.5 w-3.5 mr-2" /> Start
+                        </Button>
+                      )}
+                      {task.status !== TASK_STATUS.COMPLETED && (
+                        <Button size="sm" variant="outline" className="rounded-full font-bold text-xs hover:bg-green-50 hover:text-green-600 hover:border-green-200" onClick={() => handleUpdateStatus(task.id, TASK_STATUS.COMPLETED)}>
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Complete
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {isTasksLoading && (
+            [1, 2, 3, 4].map(i => <div key={i} className="h-64 rounded-3xl bg-white animate-pulse" />)
+          )}
+          {(!filteredTasks || filteredTasks.length === 0) && !isTasksLoading && (
+            <div className="lg:col-span-2 py-20 text-center space-y-4">
+              <div className="h-20 w-20 bg-secondary rounded-full flex items-center justify-center mx-auto">
+                <AlertTriangle className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xl font-bold font-headline">No matching tasks</p>
+                <p className="text-muted-foreground">Adjust your search or filter to find what you need.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
