@@ -20,7 +20,8 @@ import {
   Shield, 
   Mail, 
   Clock,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -30,6 +31,16 @@ import {
   DialogTrigger,
   DialogFooter
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -45,6 +56,9 @@ export default function UsersPage() {
   const [search, setSearch] = React.useState('');
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
+  // Delete confirmation state
+  const [userToDelete, setUserToDelete] = React.useState<{ id: string, name: string } | null>(null);
 
   // New user form state
   const [newName, setNewName] = React.useState('');
@@ -59,7 +73,6 @@ export default function UsersPage() {
 
   const { data: profile } = useDoc(currentUserRef);
 
-  // CRITICAL: Only run the users query if the profile exists and the user is an Admin.
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return collection(firestore, 'users');
@@ -123,24 +136,22 @@ export default function UsersPage() {
     setNewRole(ROLES.CLIENT);
   };
 
-  const handleDeleteUser = (userId: string, userName: string) => {
-    if (!firestore || !userId) return;
+  const confirmDelete = () => {
+    if (!firestore || !userToDelete) return;
 
-    // Use a non-blocking prompt or just proceed if the user is certain
-    const confirmed = window.confirm(`Are you sure you want to remove ${userName}?`);
-    if (!confirmed) return;
+    const userDocRef = doc(firestore, 'users', userToDelete.id);
+    const adminRoleRef = doc(firestore, 'roles_admin', userToDelete.id);
 
-    const userDocRef = doc(firestore, 'users', userId);
-    const adminRoleRef = doc(firestore, 'roles_admin', userId);
-
-    // Non-blocking deletion
+    // Trigger non-blocking deletion
     deleteDocumentNonBlocking(userDocRef);
     deleteDocumentNonBlocking(adminRoleRef);
 
     toast({ 
       title: "Deletion Initiated", 
-      description: `Removing ${userName} from the workspace...` 
+      description: `User "${userToDelete.name}" is being removed from the system.` 
     });
+    
+    setUserToDelete(null);
   };
 
   const filteredUsers = users?.filter(u => 
@@ -167,7 +178,7 @@ export default function UsersPage() {
       <div className="space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight">User Management</h1>
+            <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">User Management</h1>
             <p className="text-muted-foreground mt-2 text-lg">Control access and roles across the organization.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -228,7 +239,7 @@ export default function UsersPage() {
             placeholder="Search users by name or email..." 
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
+            className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
@@ -275,7 +286,7 @@ export default function UsersPage() {
                         variant="ghost" 
                         size="icon" 
                         className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all"
-                        onClick={() => handleDeleteUser(u.id, u.name)}
+                        onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Unknown User' })}
                       >
                         <Trash2 className="h-5 w-5" />
                       </Button>
@@ -299,6 +310,30 @@ export default function UsersPage() {
           )}
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent className="rounded-[2.5rem] p-8">
+          <AlertDialogHeader>
+            <div className="h-12 w-12 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <AlertDialogTitle className="text-2xl font-bold font-headline">Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription className="text-lg">
+              Are you absolutely sure you want to remove <span className="font-bold text-foreground">{userToDelete?.name}</span>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 mt-4">
+            <AlertDialogCancel className="rounded-xl h-12 font-bold">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive hover:bg-destructive/90 rounded-xl h-12 font-bold px-8"
+            >
+              Delete Member
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
