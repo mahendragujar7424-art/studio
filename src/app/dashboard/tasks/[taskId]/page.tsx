@@ -27,7 +27,8 @@ import {
   History,
   Info,
   TrendingUp,
-  User as UserIcon
+  User as UserIcon,
+  Sparkles
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
@@ -118,7 +119,7 @@ export default function TaskDetailPage() {
   if (isLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
   if (!task) return <DashboardLayout>Task not found.</DashboardLayout>;
 
-  // Only the assigned developer can update progress (Admin oversight only)
+  // Only the assigned developer can update progress
   const isAssignedDeveloper = profile?.role === ROLES.DEVELOPER && task.assignedDeveloperId === user?.uid;
   const canUpdateProgress = isAssignedDeveloper;
 
@@ -171,7 +172,8 @@ export default function TaskDetailPage() {
             <Tabs defaultValue="suggestions" className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-16 bg-secondary/20 rounded-[1.5rem] p-1.5">
                 <TabsTrigger value="suggestions" className="rounded-2xl font-bold gap-2 text-sm">
-                  <MessageSquare className="h-4 w-4" /> {profile?.role === ROLES.CLIENT ? 'Request Changes' : 'Activity Feed'}
+                  <MessageSquare className="h-4 w-4" /> 
+                  {profile?.role === ROLES.DEVELOPER ? 'Client Feedback' : profile?.role === ROLES.CLIENT ? 'Your Suggestions' : 'Activity Feed'}
                 </TabsTrigger>
                 <TabsTrigger value="history" className="rounded-2xl font-bold gap-2 text-sm">
                   <History className="h-4 w-4" /> Audit Log
@@ -181,17 +183,17 @@ export default function TaskDetailPage() {
                 <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                   <form onSubmit={handlePostMessage} className="space-y-4">
                     <Label className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">
-                      {profile?.role === ROLES.CLIENT ? 'Submit Suggestion to Developer' : 'Post Update or Reply'}
+                      {profile?.role === ROLES.CLIENT ? 'Submit Suggestion to Developer' : 'Post Update to Client'}
                     </Label>
                     <Textarea 
-                      placeholder={profile?.role === ROLES.CLIENT ? "Describe the changes you'd like to see..." : "Post a project update or reply to feedback..."} 
+                      placeholder={profile?.role === ROLES.CLIENT ? "Describe the changes you'd like to see..." : "Post a project update or reply to client feedback..."} 
                       value={message}
                       onChange={e => setMessage(e.target.value)}
                       className="min-h-[140px] rounded-2xl border-2 focus:border-primary/50 transition-all text-base"
                     />
                     <div className="flex justify-end">
                       <Button type="submit" className="h-12 rounded-xl px-8 font-bold gap-3 shadow-lg shadow-primary/20 transition-all hover:scale-105">
-                        <Send className="h-4 w-4" /> {profile?.role === ROLES.CLIENT ? 'Send Suggestion' : 'Post Update'}
+                        <Send className="h-4 w-4" /> {profile?.role === ROLES.CLIENT ? 'Send Suggestion' : 'Send Update'}
                       </Button>
                     </div>
                   </form>
@@ -200,9 +202,14 @@ export default function TaskDetailPage() {
                 <div className="space-y-6">
                   {comments?.map((c) => (
                     <div key={c.id} className={cn(
-                      "flex gap-5 p-8 rounded-[2rem] border-2 transition-all",
-                      c.role === ROLES.CLIENT ? "bg-white border-primary/10" : "bg-secondary/10 border-transparent"
+                      "flex gap-5 p-8 rounded-[2rem] border-2 transition-all relative overflow-hidden",
+                      c.role === ROLES.CLIENT ? "bg-white border-primary/20 shadow-md" : "bg-secondary/10 border-transparent"
                     )}>
+                      {c.role === ROLES.CLIENT && (
+                        <div className="absolute top-0 right-0 px-4 py-1 bg-primary text-white text-[9px] font-bold uppercase tracking-widest rounded-bl-xl flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> Client Suggestion
+                        </div>
+                      )}
                       <Avatar className="h-12 w-12 shrink-0 border-2 border-white shadow-sm">
                         <AvatarFallback className={cn(
                           "font-bold text-white",
@@ -223,7 +230,10 @@ export default function TaskDetailPage() {
                             {c.timestamp ? format(new Date(c.timestamp), 'MMM dd, HH:mm') : ''}
                           </span>
                         </div>
-                        <p className="text-muted-foreground leading-relaxed">{c.message}</p>
+                        <p className={cn(
+                          "text-muted-foreground leading-relaxed",
+                          c.role === ROLES.CLIENT ? "font-medium text-foreground/80" : ""
+                        )}>{c.message}</p>
                       </div>
                     </div>
                   ))}
@@ -246,7 +256,7 @@ export default function TaskDetailPage() {
             {canUpdateProgress ? (
               <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                 <h3 className="text-lg font-bold mb-8 flex items-center gap-3 text-primary">
-                  <TrendingUp className="h-5 w-5" /> Developer Controls
+                  <TrendingUp className="h-5 w-5" /> Project Management
                 </h3>
                 <div className="space-y-10">
                   <div className="space-y-5">
