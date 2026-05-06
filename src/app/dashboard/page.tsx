@@ -9,15 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ROLES, TASK_STATUS } from '@/lib/constants';
 import { 
   Users, 
-  CheckCircle2, 
+  CircleCheck, 
   Clock, 
-  AlertCircle,
+  CircleAlert,
   TrendingUp,
   Activity
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -69,7 +70,7 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
-                  <CheckCircle2 className="h-6 w-6" />
+                  <CircleCheck className="h-6 w-6" />
                 </div>
                 <Badge variant="secondary" className="bg-green-50 text-green-700 hover:bg-green-50 border-none font-bold">+12%</Badge>
               </div>
@@ -99,7 +100,7 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-all duration-300">
-                  <AlertCircle className="h-6 w-6" />
+                  <CircleAlert className="h-6 w-6" />
                 </div>
                 <TrendingUp className="h-5 w-5 text-orange-200" />
               </div>
