@@ -4,7 +4,8 @@
 import * as React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, query } from 'firebase/firestore';
+import { setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
@@ -90,13 +91,15 @@ export default function UsersPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      await setDoc(doc(firestore, 'users', newUser.uid), userData);
+      const userDocRef = doc(firestore, 'users', newUser.uid);
+      setDocumentNonBlocking(userDocRef, userData, { merge: false });
 
       if (newRole === ROLES.ADMIN) {
-        await setDoc(doc(firestore, 'roles_admin', newUser.uid), {
+        const adminRoleRef = doc(firestore, 'roles_admin', newUser.uid);
+        setDocumentNonBlocking(adminRoleRef, {
           id: newUser.uid,
           createdAt: new Date().toISOString(),
-        });
+        }, { merge: false });
       }
 
       toast({ title: "User Created", description: `${newName} has been added to the system.` });
@@ -121,16 +124,19 @@ export default function UsersPage() {
     setNewRole(ROLES.CLIENT);
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
+  const handleDeleteUser = (userId: string, userName: string) => {
     if (!confirm(`Are you sure you want to remove ${userName}? This will NOT delete their Auth account, only their CRM profile.`)) return;
     
-    try {
-      await deleteDoc(doc(firestore, 'users', userId));
-      await deleteDoc(doc(firestore, 'roles_admin', userId));
-      toast({ title: "User Removed", description: "Profile access has been revoked." });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
+    if (!firestore) return;
+
+    const userDocRef = doc(firestore, 'users', userId);
+    const adminRoleRef = doc(firestore, 'roles_admin', userId);
+
+    // Non-blocking deletion
+    deleteDocumentNonBlocking(userDocRef);
+    deleteDocumentNonBlocking(adminRoleRef);
+
+    toast({ title: "User Removed", description: "Profile access has been revoked." });
   };
 
   const filteredUsers = users?.filter(u => 
@@ -185,7 +191,7 @@ export default function UsersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase tracking-widest">Full Name</Label>
-                  <Input placeholder="John Doe" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl" />
+                  <Input placeholder="John Doe" value={newName} onChange={e => setNewName(setNewName(e.target.value))} required className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase tracking-widest">Email Address</Label>
@@ -232,7 +238,7 @@ export default function UsersPage() {
                   <TableCell className="px-8 py-6">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                        {u.name.charAt(0)}
+                        {u.name?.charAt(0) || 'U'}
                       </div>
                       <div className="flex flex-col">
                         <span className="font-bold text-sm">{u.name}</span>
