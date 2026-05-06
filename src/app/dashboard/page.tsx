@@ -8,7 +8,6 @@ import { doc, collection, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ROLES, TASK_STATUS } from '@/lib/constants';
 import { 
-  Users, 
   CheckCircle, 
   Clock, 
   CircleAlert,
@@ -18,7 +17,6 @@ import {
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -49,7 +47,6 @@ export default function DashboardPage() {
   const pendingCount = myTasks?.filter(t => t.status === TASK_STATUS.PENDING).length || 0;
   const totalCount = myTasks?.length || 0;
   
-  // Calculate average progress across all active tasks
   const activeTasks = myTasks?.filter(t => t.status !== TASK_STATUS.COMPLETED) || [];
   const avgProgress = activeTasks.length > 0 
     ? Math.round(activeTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / activeTasks.length) 

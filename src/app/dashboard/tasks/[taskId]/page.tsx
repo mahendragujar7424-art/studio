@@ -25,7 +25,6 @@ import {
   CircleCheck, 
   CircleAlert,
   History,
-  Info,
   TrendingUp,
   User as UserIcon,
   Sparkles
@@ -119,7 +118,6 @@ export default function TaskDetailPage() {
   if (isLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
   if (!task) return <DashboardLayout>Task not found.</DashboardLayout>;
 
-  // Only the assigned developer can update progress
   const isAssignedDeveloper = profile?.role === ROLES.DEVELOPER && task.assignedDeveloperId === user?.uid;
   const canUpdateProgress = isAssignedDeveloper;
 
@@ -127,7 +125,7 @@ export default function TaskDetailPage() {
     <DashboardLayout>
       <div className="max-w-6xl mx-auto space-y-8">
         <Button variant="ghost" onClick={() => router.back()} className="rounded-full gap-2 hover:bg-white">
-          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+          <ArrowLeft className="h-4 w-4" /> Back to Workspace
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -164,8 +162,8 @@ export default function TaskDetailPage() {
               </div>
               
               <div className="mt-10 pt-8 border-t flex flex-wrap gap-8 text-sm font-medium text-muted-foreground">
-                <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Launched: {task.createdAt ? format(new Date(task.createdAt), 'MMM dd, yyyy') : 'N/A'}</div>
-                <div className="flex items-center gap-2"><UserIcon className="h-4 w-4 text-primary" /> Creator ID: {task.createdById?.substring(0, 8)}...</div>
+                <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Created: {task.createdAt ? format(new Date(task.createdAt), 'MMM dd, yyyy') : 'N/A'}</div>
+                <div className="flex items-center gap-2"><UserIcon className="h-4 w-4 text-primary" /> Lead: {task.assignedDeveloperId?.substring(0, 8)}...</div>
               </div>
             </Card>
 
@@ -173,7 +171,7 @@ export default function TaskDetailPage() {
               <TabsList className="grid w-full grid-cols-2 h-16 bg-secondary/20 rounded-[1.5rem] p-1.5">
                 <TabsTrigger value="suggestions" className="rounded-2xl font-bold gap-2 text-sm">
                   <MessageSquare className="h-4 w-4" /> 
-                  {profile?.role === ROLES.DEVELOPER ? 'Client Feedback' : profile?.role === ROLES.CLIENT ? 'Your Suggestions' : 'Activity Feed'}
+                  {profile?.role === ROLES.DEVELOPER ? 'Client Feedback' : 'Suggestions'}
                 </TabsTrigger>
                 <TabsTrigger value="history" className="rounded-2xl font-bold gap-2 text-sm">
                   <History className="h-4 w-4" /> Audit Log
@@ -183,7 +181,7 @@ export default function TaskDetailPage() {
                 <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                   <form onSubmit={handlePostMessage} className="space-y-4">
                     <Label className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">
-                      {profile?.role === ROLES.CLIENT ? 'Submit Suggestion to Developer' : 'Post Update to Client'}
+                      {profile?.role === ROLES.CLIENT ? 'Submit Suggestion to Developer' : 'Reply to Client'}
                     </Label>
                     <Textarea 
                       placeholder={profile?.role === ROLES.CLIENT ? "Describe the changes you'd like to see..." : "Post a project update or reply to client feedback..."} 
@@ -193,7 +191,7 @@ export default function TaskDetailPage() {
                     />
                     <div className="flex justify-end">
                       <Button type="submit" className="h-12 rounded-xl px-8 font-bold gap-3 shadow-lg shadow-primary/20 transition-all hover:scale-105">
-                        <Send className="h-4 w-4" /> {profile?.role === ROLES.CLIENT ? 'Send Suggestion' : 'Send Update'}
+                        <Send className="h-4 w-4" /> Send Message
                       </Button>
                     </div>
                   </form>
@@ -239,14 +237,14 @@ export default function TaskDetailPage() {
                   ))}
                   {(!comments || comments.length === 0) && (
                     <div className="text-center py-12 text-muted-foreground italic bg-white rounded-[2rem] border-2 border-dashed">
-                      No feedback or updates shared yet.
+                      No logs shared yet.
                     </div>
                   )}
                 </div>
               </TabsContent>
               <TabsContent value="history">
                 <Card className="border-none shadow-sm bg-white rounded-[2rem] p-12 text-center text-muted-foreground italic">
-                  Complete project timeline and status history is generated automatically as updates are saved.
+                  Complete project timeline is generated automatically as status updates are recorded.
                 </Card>
               </TabsContent>
             </Tabs>
@@ -256,12 +254,12 @@ export default function TaskDetailPage() {
             {canUpdateProgress ? (
               <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                 <h3 className="text-lg font-bold mb-8 flex items-center gap-3 text-primary">
-                  <TrendingUp className="h-5 w-5" /> Project Management
+                  <TrendingUp className="h-5 w-5" /> Work Controls
                 </h3>
                 <div className="space-y-10">
                   <div className="space-y-5">
                     <div className="flex justify-between text-sm font-bold uppercase tracking-widest">
-                      <span className="text-muted-foreground">Work Progress</span>
+                      <span className="text-muted-foreground">Current Progress</span>
                       <span className="text-primary">{localProgress}%</span>
                     </div>
                     <Slider 
@@ -276,18 +274,18 @@ export default function TaskDetailPage() {
                     onClick={saveProgress} 
                     className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all"
                   >
-                    Save Progress Status
+                    Save Status
                   </Button>
                 </div>
               </Card>
             ) : (
                <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                  <h3 className="text-lg font-bold mb-6 flex items-center gap-3 text-muted-foreground">
-                   <Clock className="h-5 w-5" /> Project Timeline
+                   <Clock className="h-5 w-5" /> Project Status
                  </h3>
                  <div className="space-y-4">
                    <div className="p-4 rounded-xl bg-secondary/10">
-                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Current Status</p>
+                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Current Milestone</p>
                      <p className="font-bold text-primary">{task.status}</p>
                    </div>
                    <div className="p-4 rounded-xl bg-secondary/10">
@@ -296,7 +294,7 @@ export default function TaskDetailPage() {
                    </div>
                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
                      <p className="text-xs text-muted-foreground italic">
-                       {profile?.role === ROLES.ADMIN ? "Only the assigned Developer can modify project status." : "Your developer will update progress as milestones are reached."}
+                       Updates reflect instantly as milestones are hit by the dev team.
                      </p>
                    </div>
                  </div>
@@ -307,38 +305,36 @@ export default function TaskDetailPage() {
               <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                 <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-8 text-muted-foreground">Workflow Execution</h3>
                 <div className="space-y-3">
-                  <div className="grid grid-cols-1 gap-3">
-                    <Button 
-                      variant={task.status === 'Pending' ? "default" : "outline"}
-                      className={cn(
-                        "rounded-xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                        task.status === 'Pending' ? "bg-orange-500 hover:bg-orange-600 border-transparent text-white" : "hover:bg-orange-50 border-orange-100 text-orange-600"
-                      )}
-                      onClick={() => updateStatus('Pending')}
-                    >
-                      <CircleAlert className="h-5 w-5" /> Pending Assignment
-                    </Button>
-                    <Button 
-                      variant={task.status === 'In Progress' ? "default" : "outline"}
-                      className={cn(
-                        "rounded-xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                        task.status === 'In Progress' ? "bg-blue-500 hover:bg-blue-600 border-transparent text-white" : "hover:bg-blue-50 border-blue-100 text-blue-600"
-                      )}
-                      onClick={() => updateStatus('In Progress')}
-                    >
-                      <Clock className="h-5 w-5" /> Working In Progress
-                    </Button>
-                    <Button 
-                      variant={task.status === 'Completed' ? "default" : "outline"}
-                      className={cn(
-                        "rounded-xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                        task.status === 'Completed' ? "bg-green-500 hover:bg-green-600 border-transparent text-white" : "hover:bg-green-50 border-green-100 text-green-600"
-                      )}
-                      onClick={() => updateStatus('Completed')}
-                    >
-                      <CircleCheck className="h-5 w-5" /> Mark as Completed
-                    </Button>
-                  </div>
+                  <Button 
+                    variant={task.status === 'Pending' ? "default" : "outline"}
+                    className={cn(
+                      "w-full rounded-xl h-14 justify-start gap-4 font-bold transition-all border-2",
+                      task.status === 'Pending' ? "bg-orange-500 hover:bg-orange-600 border-transparent text-white" : "hover:bg-orange-50 border-orange-100 text-orange-600"
+                    )}
+                    onClick={() => updateStatus('Pending')}
+                  >
+                    <CircleAlert className="h-5 w-5" /> Pending
+                  </Button>
+                  <Button 
+                    variant={task.status === 'In Progress' ? "default" : "outline"}
+                    className={cn(
+                      "w-full rounded-xl h-14 justify-start gap-4 font-bold transition-all border-2",
+                      task.status === 'In Progress' ? "bg-blue-500 hover:bg-blue-600 border-transparent text-white" : "hover:bg-blue-50 border-blue-100 text-blue-600"
+                    )}
+                    onClick={() => updateStatus('In Progress')}
+                  >
+                    <Clock className="h-5 w-5" /> In Progress
+                  </Button>
+                  <Button 
+                    variant={task.status === 'Completed' ? "default" : "outline"}
+                    className={cn(
+                      "w-full rounded-xl h-14 justify-start gap-4 font-bold transition-all border-2",
+                      task.status === 'Completed' ? "bg-green-500 hover:bg-green-600 border-transparent text-white" : "hover:bg-green-50 border-green-100 text-green-600"
+                    )}
+                    onClick={() => updateStatus('Completed')}
+                  >
+                    <CircleCheck className="h-5 w-5" /> Completed
+                  </Button>
                 </div>
               </Card>
             )}

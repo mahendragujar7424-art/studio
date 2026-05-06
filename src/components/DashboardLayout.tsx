@@ -11,7 +11,6 @@ import {
   Settings, 
   LogOut, 
   Menu,
-  X,
   User as UserIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,7 +50,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
-  // Fetch user profile from Firestore to get role
   const userRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return doc(firestore, 'users', user.uid);
@@ -71,7 +69,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
-  // If auth is still loading, or if profile is loading while user is logged in
   if (isUserLoading || (user && isProfileLoading)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -83,24 +80,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Guard: If not logged in and auth check finished, return null while redirecting
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   const role = profile?.role;
 
   const links = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Tasks', href: '/dashboard/tasks', icon: CheckSquare },
+    { name: 'Projects', href: '/dashboard/tasks', icon: CheckSquare },
     ...(role === ROLES.ADMIN ? [{ name: 'Users', href: '/dashboard/users', icon: Users }] : []),
-    { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
-    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+    { name: 'Identity', href: '/dashboard/profile', icon: UserIcon },
+    { name: 'Preferences', href: '/dashboard/settings', icon: Settings },
   ];
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
-      {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-[40] md:hidden backdrop-blur-sm"
@@ -108,7 +101,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Sidebar */}
       <aside className={cn(
         "fixed inset-y-0 left-0 z-[50] w-72 bg-white border-r transition-transform duration-300 ease-in-out md:translate-x-0",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -138,7 +130,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-3 px-2 mb-6">
               <Avatar className="h-10 w-10 border-2 border-primary/10">
                 <AvatarFallback className="bg-primary/5 text-primary font-bold">
-                  {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  {profile?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
@@ -158,7 +150,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 md:pl-72 flex flex-col min-h-screen">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 bg-white/80 backdrop-blur-md px-6 border-b md:hidden">
           <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
