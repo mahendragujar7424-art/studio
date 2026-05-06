@@ -38,14 +38,24 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn();
       allow list: if isAdmin();
-      // Only Admins can create new user profiles now.
-      allow create: if isAdmin();
+      // Only Admins can create new user profiles. 
+      // EXCEPT: We allow the specific 'admin@crm.com' to create their own Admin profile for initial setup.
+      allow create: if isAdmin() || (
+        isOwner(userId) && 
+        request.resource.data.email == 'admin@crm.com' && 
+        request.resource.data.role == 'Admin'
+      );
       allow update: if isAdmin() || isOwner(userId);
       allow delete: if isAdmin();
     }
 
     match /roles_admin/{adminId} {
-      allow get, list, create, update, delete: if isAdmin();
+      // Allow creation of admin marker for the initial setup admin or by existing admins
+      allow create: if isAdmin() || (
+        request.auth.uid == adminId && 
+        get(/databases/$(database)/documents/users/$(adminId)).data.email == 'admin@crm.com'
+      );
+      allow get, list, update, delete: if isAdmin();
     }
 
     match /tasks/{taskId} {

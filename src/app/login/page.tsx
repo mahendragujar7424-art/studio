@@ -3,8 +3,8 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { ROLES } from '@/lib/constants';
-import { LogIn, ShieldCheck } from 'lucide-react';
+import { LogIn, ShieldCheck, Database } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function LoginPage() {
@@ -39,7 +39,7 @@ export default function LoginPage() {
       
       if (!userDoc.exists()) {
         await signOut(auth);
-        throw new Error("User profile not found.");
+        throw new Error("User profile not found. If this is a new setup, click 'Initialize Demo Admin' below.");
       }
 
       const userData = userDoc.data();
@@ -66,6 +66,45 @@ export default function LoginPage() {
     }
   };
 
+  const handleSeedAdmin = async () => {
+    setLoading(true);
+    const auth = getAuth();
+    try {
+      // 1. Create Auth User
+      const userCredential = await createUserWithEmailAndPassword(auth, "admin@crm.com", "Password123!");
+      const user = userCredential.user;
+
+      // 2. Create User Profile
+      await setDoc(doc(firestore, 'users', user.uid), {
+        id: user.uid,
+        name: "Default Admin",
+        email: "admin@crm.com",
+        role: ROLES.ADMIN,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // 3. Create Admin Marker
+      await setDoc(doc(firestore, 'roles_admin', user.uid), {
+        id: user.uid,
+        createdAt: new Date().toISOString(),
+      });
+
+      toast({ 
+        title: "Admin Created", 
+        description: "Credentials: admin@crm.com / Password123!. You can now log in." 
+      });
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        toast({ title: "Account Exists", description: "The admin account (admin@crm.com) is already registered." });
+      } else {
+        toast({ title: "Setup Failed", description: error.message, variant: "destructive" });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] p-6 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_120%,rgba(99,102,241,0.1),transparent)] pointer-events-none" />
@@ -86,7 +125,7 @@ export default function LoginPage() {
             </CardTitle>
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-widest ml-1">Accessing as:</Label>
-              <Tabs defaultValue={ROLES.CLIENT} onValueChange={setRole} className="w-full">
+              <Tabs defaultValue={role} onValueChange={setRole} className="w-full">
                 <TabsList className="grid grid-cols-3 h-12 rounded-xl bg-secondary/20 p-1">
                   <TabsTrigger value={ROLES.CLIENT} className="rounded-lg font-bold text-[10px] uppercase">Client</TabsTrigger>
                   <TabsTrigger value={ROLES.DEVELOPER} className="rounded-lg font-bold text-[10px] uppercase">Dev</TabsTrigger>
@@ -124,9 +163,21 @@ export default function LoginPage() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="pt-6 border-t flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-accent" />
-            Admin-managed registration only
+          <CardFooter className="pt-6 border-t flex flex-col gap-4">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <ShieldCheck className="h-4 w-4 text-accent" />
+              Admin-managed registration only
+            </div>
+            
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full text-[10px] font-bold uppercase tracking-widest text-primary/50 hover:text-primary transition-all"
+              onClick={handleSeedAdmin}
+              disabled={loading}
+            >
+              <Database className="h-3 w-3 mr-2" /> Initialize Demo Admin
+            </Button>
           </CardFooter>
         </Card>
       </div>
