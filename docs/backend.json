@@ -24,6 +24,11 @@
           "type": "string",
           "description": "The role of the user within the application (e.g., Admin, Developer, Client). Possible values: 'Admin', 'Developer', 'Client'."
         },
+        "designation": {
+          "type": "string",
+          "description": "The technical specialty of a developer.",
+          "enum": ["Front-end", "Back-end", "Full-stack", "Mobile", "UI/UX"]
+        },
         "teamId": {
           "type": "string",
           "description": "Reference to the Team this user (Developer) belongs to."

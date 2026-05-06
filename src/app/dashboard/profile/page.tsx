@@ -13,8 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { User, Mail, Shield, Calendar } from 'lucide-react';
+import { User, Mail, Shield, Calendar, Code2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { ROLES } from '@/lib/constants';
 
 export default function ProfilePage() {
   const { user } = useUser();
@@ -65,6 +66,12 @@ export default function ProfilePage() {
             </div>
             <h2 className="text-xl font-bold font-headline">{profile?.name}</h2>
             <p className="text-sm text-muted-foreground">{profile?.email}</p>
+            {profile?.role === ROLES.DEVELOPER && profile?.designation && (
+              <div className="mt-4 flex items-center justify-center gap-2 text-xs font-bold text-primary uppercase">
+                <Code2 className="h-4 w-4" />
+                {profile.designation} Developer
+              </div>
+            )}
           </Card>
 
           <Card className="md:col-span-2 border-none shadow-sm bg-white rounded-3xl p-8">

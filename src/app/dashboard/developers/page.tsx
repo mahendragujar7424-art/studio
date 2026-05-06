@@ -21,7 +21,7 @@ import {
   Clock,
   AlertTriangle,
   Lock,
-  UserCheck
+  Code2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -43,9 +43,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+const DESIGNATIONS = [
+  'Front-end',
+  'Back-end',
+  'Full-stack',
+  'Mobile',
+  'UI/UX'
+];
 
 export default function DevelopersPage() {
   const { user: currentUser } = useUser();
@@ -59,6 +68,7 @@ export default function DevelopersPage() {
 
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
+  const [newDesignation, setNewDesignation] = React.useState('Full-stack');
 
   const currentUserRef = useMemoFirebase(() => {
     if (!firestore || !currentUser?.uid) return null;
@@ -93,6 +103,7 @@ export default function DevelopersPage() {
         name: newName,
         email: newEmail,
         role: ROLES.DEVELOPER,
+        designation: newDesignation,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -100,10 +111,11 @@ export default function DevelopersPage() {
       const userDocRef = doc(firestore, 'users', newUser.uid);
       setDocumentNonBlocking(userDocRef, userData, { merge: false });
 
-      toast({ title: "Developer Provisioned", description: `${newName} added successfully.` });
+      toast({ title: "Developer Provisioned", description: `${newName} added as ${newDesignation}.` });
       setIsCreateOpen(false);
       setNewName('');
       setNewEmail('');
+      setNewDesignation('Full-stack');
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -122,7 +134,8 @@ export default function DevelopersPage() {
 
   const filteredDevs = developers?.filter(u => 
     u.name?.toLowerCase().includes(search.toLowerCase()) || 
-    u.email?.toLowerCase().includes(search.toLowerCase())
+    u.email?.toLowerCase().includes(search.toLowerCase()) ||
+    u.designation?.toLowerCase().includes(search.toLowerCase())
   );
 
   if (profile?.role !== ROLES.ADMIN && !isDevsLoading) {
@@ -163,6 +176,19 @@ export default function DevelopersPage() {
                   <Label className="text-xs font-bold uppercase">Email Address</Label>
                   <Input type="email" placeholder="jane@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase">Designation / Specialty</Label>
+                  <Select value={newDesignation} onValueChange={setNewDesignation}>
+                    <SelectTrigger className="h-12 rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DESIGNATIONS.map(d => (
+                        <SelectItem key={d} value={d}>{d} Developer</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="p-4 rounded-xl bg-secondary/10 flex items-center gap-3">
                   <Lock className="h-4 w-4 text-muted-foreground" />
                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Default Password: 123456</p>
@@ -180,7 +206,7 @@ export default function DevelopersPage() {
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input 
-            placeholder="Search developers..." 
+            placeholder="Search developers by name or specialty..." 
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
@@ -192,6 +218,7 @@ export default function DevelopersPage() {
             <TableHeader className="bg-secondary/20">
               <TableRow className="border-none">
                 <TableHead className="px-8 font-bold uppercase text-[10px] py-6">Developer</TableHead>
+                <TableHead className="font-bold uppercase text-[10px]">Technical Specialty</TableHead>
                 <TableHead className="font-bold uppercase text-[10px]">Team Status</TableHead>
                 <TableHead className="font-bold uppercase text-[10px]">Joined</TableHead>
                 <TableHead className="px-8 text-right font-bold uppercase text-[10px]">Actions</TableHead>
@@ -209,6 +236,12 @@ export default function DevelopersPage() {
                         <span className="font-bold text-sm">{u.name}</span>
                         <span className="text-xs text-muted-foreground">{u.email}</span>
                       </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Code2 className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-sm font-medium">{u.designation || 'General'}</span>
                     </div>
                   </TableCell>
                   <TableCell>
