@@ -13,7 +13,8 @@ import {
   CircleAlert,
   TrendingUp,
   Activity,
-  ArrowUpRight
+  ArrowUpRight,
+  Archive
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -34,9 +35,11 @@ export default function DashboardPage() {
   const tasksQuery = useMemoFirebase(() => {
     if (!firestore || !profile || !user?.uid) return null;
     const tasksRef = collection(firestore, 'tasks');
-    if (profile.role === ROLES.ADMIN) return tasksRef;
-    if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('assignedDeveloperId', '==', user.uid));
-    if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid));
+    
+    // We filter out ARCHIVED tasks from the dashboard to keep it clean
+    if (profile.role === ROLES.ADMIN) return query(tasksRef, where('status', '!=', TASK_STATUS.ARCHIVED));
+    if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('assignedDeveloperId', '==', user.uid), where('status', '!=', TASK_STATUS.ARCHIVED));
+    if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid), where('status', '!=', TASK_STATUS.ARCHIVED));
     return null;
   }, [firestore, profile, user?.uid]);
 
@@ -47,7 +50,7 @@ export default function DashboardPage() {
   const pendingCount = myTasks?.filter(t => t.status === TASK_STATUS.PENDING).length || 0;
   const totalCount = myTasks?.length || 0;
   
-  const activeTasks = myTasks?.filter(t => t.status !== TASK_STATUS.COMPLETED) || [];
+  const activeTasks = myTasks?.filter(t => t.status !== TASK_STATUS.COMPLETED && t.status !== TASK_STATUS.ARCHIVED) || [];
   const avgProgress = activeTasks.length > 0 
     ? Math.round(activeTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / activeTasks.length) 
     : 0;
@@ -195,6 +198,11 @@ export default function DashboardPage() {
               <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
                 <p className="text-sm font-bold text-primary">Workspace Note</p>
                 <p className="text-xs text-muted-foreground mt-1">Developers can update granular completion percentages. Clients see these updates reflected instantly in their portal.</p>
+              </div>
+              <div className="flex justify-center">
+                <Button variant="ghost" asChild className="text-xs font-bold gap-2 text-muted-foreground">
+                   <Link href="/dashboard/tasks?status=Archived"><Archive className="h-3 w-3" /> View Archive</Link>
+                </Button>
               </div>
             </CardContent>
           </Card>

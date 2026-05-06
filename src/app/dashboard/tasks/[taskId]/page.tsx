@@ -27,7 +27,9 @@ import {
   History,
   TrendingUp,
   User as UserIcon,
-  Sparkles
+  Sparkles,
+  Archive,
+  ShieldCheck
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
@@ -115,10 +117,32 @@ export default function TaskDetailPage() {
     toast({ title: "Progress Saved", description: `Project completion: ${localProgress}%` });
   };
 
+  const handleSignOff = () => {
+    if (!taskRef) return;
+    updateDocumentNonBlocking(taskRef, {
+      status: TASK_STATUS.COMPLETED,
+      isApproved: true,
+      updatedAt: new Date().toISOString()
+    });
+    toast({ title: "Project Signed Off", description: "You have successfully approved this project." });
+  };
+
+  const handleArchive = () => {
+    if (!taskRef) return;
+    updateDocumentNonBlocking(taskRef, {
+      status: TASK_STATUS.ARCHIVED,
+      updatedAt: new Date().toISOString()
+    });
+    toast({ title: "Task Archived", description: "Project has been moved to archives." });
+    router.push('/dashboard/tasks');
+  };
+
   if (isLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
   if (!task) return <DashboardLayout>Task not found.</DashboardLayout>;
 
   const isAssignedDeveloper = profile?.role === ROLES.DEVELOPER && task.assignedDeveloperId === user?.uid;
+  const isClient = profile?.role === ROLES.CLIENT && task.assignedClientId === user?.uid;
+  const isAdmin = profile?.role === ROLES.ADMIN;
   const canUpdateProgress = isAssignedDeveloper;
 
   return (
@@ -139,13 +163,20 @@ export default function TaskDetailPage() {
                     </Badge>
                     <Badge className={cn(
                       "border-none font-bold uppercase text-[9px] px-3 py-1",
-                      task.status === 'Completed' ? "bg-green-100 text-green-700" : "bg-primary/10 text-primary"
+                      task.status === TASK_STATUS.COMPLETED ? "bg-green-100 text-green-700" : 
+                      task.status === TASK_STATUS.ARCHIVED ? "bg-slate-100 text-slate-700" :
+                      "bg-primary/10 text-primary"
                     )}>
                       {task.status}
                     </Badge>
                   </div>
                   <h1 className="text-4xl font-bold font-headline leading-tight">{task.title}</h1>
                 </div>
+                {isAdmin && task.status !== TASK_STATUS.ARCHIVED && (
+                   <Button variant="outline" onClick={handleArchive} className="rounded-xl border-2 font-bold gap-2">
+                     <Archive className="h-4 w-4" /> Archive Task
+                   </Button>
+                )}
               </div>
               
               <div className="mb-8 p-8 rounded-3xl bg-primary/5 border border-primary/10 space-y-4">
@@ -156,6 +187,19 @@ export default function TaskDetailPage() {
                 <Progress value={task.progress || 0} className="h-4 rounded-full" />
               </div>
 
+              {isClient && task.status === TASK_STATUS.COMPLETED && !task.isApproved && (
+                <div className="p-8 rounded-3xl bg-green-50 border-2 border-green-200 mb-8 flex flex-col items-center text-center gap-4">
+                  <ShieldCheck className="h-12 w-12 text-green-600" />
+                  <div>
+                    <h3 className="text-xl font-bold text-green-900">Delivery Ready for Sign-off</h3>
+                    <p className="text-green-700 mt-1">The developer has marked this project as complete. Please review and provide final approval.</p>
+                  </div>
+                  <Button onClick={handleSignOff} className="bg-green-600 hover:bg-green-700 h-12 rounded-xl px-10 font-bold shadow-lg shadow-green-200">
+                    Approve & Sign-off Project
+                  </Button>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Project Brief</h3>
                 <p className="text-lg text-muted-foreground leading-relaxed">{task.description}</p>
@@ -163,7 +207,7 @@ export default function TaskDetailPage() {
               
               <div className="mt-10 pt-8 border-t flex flex-wrap gap-8 text-sm font-medium text-muted-foreground">
                 <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Created: {task.createdAt ? format(new Date(task.createdAt), 'MMM dd, yyyy') : 'N/A'}</div>
-                <div className="flex items-center gap-2"><UserIcon className="h-4 w-4 text-primary" /> Lead: {task.assignedDeveloperId?.substring(0, 8)}...</div>
+                <div className="flex items-center gap-2"><UserIcon className="h-4 w-4 text-primary" /> Lead Dev ID: {task.assignedDeveloperId?.substring(0, 8)}...</div>
               </div>
             </Card>
 
@@ -178,24 +222,26 @@ export default function TaskDetailPage() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="suggestions" className="pt-8 space-y-8">
-                <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
-                  <form onSubmit={handlePostMessage} className="space-y-4">
-                    <Label className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">
-                      {profile?.role === ROLES.CLIENT ? 'Submit Suggestion to Developer' : 'Reply to Client'}
-                    </Label>
-                    <Textarea 
-                      placeholder={profile?.role === ROLES.CLIENT ? "Describe the changes you'd like to see..." : "Post a project update or reply to client feedback..."} 
-                      value={message}
-                      onChange={e => setMessage(e.target.value)}
-                      className="min-h-[140px] rounded-2xl border-2 focus:border-primary/50 transition-all text-base"
-                    />
-                    <div className="flex justify-end">
-                      <Button type="submit" className="h-12 rounded-xl px-8 font-bold gap-3 shadow-lg shadow-primary/20 transition-all hover:scale-105">
-                        <Send className="h-4 w-4" /> Send Message
-                      </Button>
-                    </div>
-                  </form>
-                </Card>
+                {task.status !== TASK_STATUS.ARCHIVED && (
+                  <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
+                    <form onSubmit={handlePostMessage} className="space-y-4">
+                      <Label className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">
+                        {profile?.role === ROLES.CLIENT ? 'Submit Suggestion to Developer' : 'Reply to Client'}
+                      </Label>
+                      <Textarea 
+                        placeholder={profile?.role === ROLES.CLIENT ? "Describe the changes you'd like to see..." : "Post a project update or reply to client feedback..."} 
+                        value={message}
+                        onChange={e => setMessage(e.target.value)}
+                        className="min-h-[140px] rounded-2xl border-2 focus:border-primary/50 transition-all text-base"
+                      />
+                      <div className="flex justify-end">
+                        <Button type="submit" className="h-12 rounded-xl px-8 font-bold gap-3 shadow-lg shadow-primary/20 transition-all hover:scale-105">
+                          <Send className="h-4 w-4" /> Send Message
+                        </Button>
+                      </div>
+                    </form>
+                  </Card>
+                )}
 
                 <div className="space-y-6">
                   {comments?.map((c) => (
@@ -251,7 +297,7 @@ export default function TaskDetailPage() {
           </div>
 
           <div className="space-y-8">
-            {canUpdateProgress ? (
+            {canUpdateProgress && task.status !== TASK_STATUS.ARCHIVED ? (
               <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                 <h3 className="text-lg font-bold mb-8 flex items-center gap-3 text-primary">
                   <TrendingUp className="h-5 w-5" /> Work Controls
@@ -294,44 +340,44 @@ export default function TaskDetailPage() {
                    </div>
                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
                      <p className="text-xs text-muted-foreground italic">
-                       Updates reflect instantly as milestones are hit by the dev team.
+                       {task.status === TASK_STATUS.ARCHIVED ? "This project is now in the archive." : "Updates reflect instantly as milestones are hit by the dev team."}
                      </p>
                    </div>
                  </div>
                </Card>
             )}
 
-            {canUpdateProgress && (
+            {canUpdateProgress && task.status !== TASK_STATUS.ARCHIVED && (
               <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                 <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-8 text-muted-foreground">Workflow Execution</h3>
                 <div className="space-y-3">
                   <Button 
-                    variant={task.status === 'Pending' ? "default" : "outline"}
+                    variant={task.status === TASK_STATUS.PENDING ? "default" : "outline"}
                     className={cn(
                       "w-full rounded-xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                      task.status === 'Pending' ? "bg-orange-500 hover:bg-orange-600 border-transparent text-white" : "hover:bg-orange-50 border-orange-100 text-orange-600"
+                      task.status === TASK_STATUS.PENDING ? "bg-orange-500 hover:bg-orange-600 border-transparent text-white" : "hover:bg-orange-50 border-orange-100 text-orange-600"
                     )}
-                    onClick={() => updateStatus('Pending')}
+                    onClick={() => updateStatus(TASK_STATUS.PENDING)}
                   >
                     <CircleAlert className="h-5 w-5" /> Pending
                   </Button>
                   <Button 
-                    variant={task.status === 'In Progress' ? "default" : "outline"}
+                    variant={task.status === TASK_STATUS.IN_PROGRESS ? "default" : "outline"}
                     className={cn(
                       "w-full rounded-xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                      task.status === 'In Progress' ? "bg-blue-500 hover:bg-blue-600 border-transparent text-white" : "hover:bg-blue-50 border-blue-100 text-blue-600"
+                      task.status === TASK_STATUS.IN_PROGRESS ? "bg-blue-500 hover:bg-blue-600 border-transparent text-white" : "hover:bg-blue-50 border-blue-100 text-blue-600"
                     )}
-                    onClick={() => updateStatus('In Progress')}
+                    onClick={() => updateStatus(TASK_STATUS.IN_PROGRESS)}
                   >
                     <Clock className="h-5 w-5" /> In Progress
                   </Button>
                   <Button 
-                    variant={task.status === 'Completed' ? "default" : "outline"}
+                    variant={task.status === TASK_STATUS.COMPLETED ? "default" : "outline"}
                     className={cn(
                       "w-full rounded-xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                      task.status === 'Completed' ? "bg-green-500 hover:bg-green-600 border-transparent text-white" : "hover:bg-green-50 border-green-100 text-green-600"
+                      task.status === TASK_STATUS.COMPLETED ? "bg-green-500 hover:bg-green-600 border-transparent text-white" : "hover:bg-green-50 border-green-100 text-green-600"
                     )}
-                    onClick={() => updateStatus('Completed')}
+                    onClick={() => updateStatus(TASK_STATUS.COMPLETED)}
                   >
                     <CircleCheck className="h-5 w-5" /> Completed
                   </Button>

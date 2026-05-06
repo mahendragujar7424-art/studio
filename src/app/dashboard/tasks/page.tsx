@@ -21,7 +21,8 @@ import {
   Clock,
   TriangleAlert,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  Archive
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -37,14 +38,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useSearchParams } from 'next/navigation';
 
 export default function TasksPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const initialStatusFilter = searchParams.get('status') || 'all';
 
   const [search, setSearch] = React.useState('');
-  const [filterStatus, setFilterStatus] = React.useState<string>('all');
+  const [filterStatus, setFilterStatus] = React.useState<string>(initialStatusFilter);
   const [isTasksLoading, setIsTasksLoading] = React.useState(true);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
@@ -78,6 +82,8 @@ export default function TasksPage() {
   const tasksQuery = useMemoFirebase(() => {
     if (!firestore || !profile || !user?.uid) return null;
     const tasksRef = collection(firestore, 'tasks');
+    
+    // Default: Filter out archived unless specifically requested
     if (profile.role === ROLES.ADMIN) return tasksRef;
     if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('assignedDeveloperId', '==', user.uid));
     if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid));
@@ -121,7 +127,7 @@ export default function TasksPage() {
   const filteredTasks = tasks?.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) || 
                           t.description.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || t.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' ? t.status !== TASK_STATUS.ARCHIVED : t.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -229,10 +235,11 @@ export default function TasksPage() {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="all">Active Only</SelectItem>
               <SelectItem value={TASK_STATUS.PENDING}>Pending</SelectItem>
-              <SelectItem value={TASK_STATUS.IN_PROGRESS}>Active</SelectItem>
+              <SelectItem value={TASK_STATUS.IN_PROGRESS}>In Progress</SelectItem>
               <SelectItem value={TASK_STATUS.COMPLETED}>Completed</SelectItem>
+              <SelectItem value={TASK_STATUS.ARCHIVED}>Archived</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -283,7 +290,7 @@ export default function TasksPage() {
                 </div>
                 <Button asChild variant="ghost" className="w-full rounded-xl font-bold">
                   <Link href={`/dashboard/tasks/${task.id}`}>
-                    Manage & Feedback <ArrowRight className="h-4 w-4 ml-2" />
+                    {task.status === TASK_STATUS.ARCHIVED ? 'View Details' : 'Manage & Feedback'} <ArrowRight className="h-4 w-4 ml-2" />
                   </Link>
                 </Button>
               </CardContent>

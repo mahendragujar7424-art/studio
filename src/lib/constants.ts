@@ -11,6 +11,7 @@ export const TASK_STATUS = {
   PENDING: 'Pending',
   IN_PROGRESS: 'In Progress',
   COMPLETED: 'Completed',
+  ARCHIVED: 'Archived',
 } as const;
 
 export type TaskStatus = typeof TASK_STATUS[keyof typeof TASK_STATUS];
