@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 import { ROLES, TASK_STATUS } from '@/lib/constants';
 import { format } from 'date-fns';
 import { 
@@ -117,9 +118,9 @@ export default function TaskDetailPage() {
   if (isLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
   if (!task) return <DashboardLayout>Task not found.</DashboardLayout>;
 
-  // Only the assigned developer (or admin) can update progress
+  // Only the assigned developer can update progress (Admin oversight only)
   const isAssignedDeveloper = profile?.role === ROLES.DEVELOPER && task.assignedDeveloperId === user?.uid;
-  const canUpdateProgress = profile?.role === ROLES.ADMIN || isAssignedDeveloper;
+  const canUpdateProgress = isAssignedDeveloper;
 
   return (
     <DashboardLayout>
@@ -170,7 +171,7 @@ export default function TaskDetailPage() {
             <Tabs defaultValue="suggestions" className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-16 bg-secondary/20 rounded-[1.5rem] p-1.5">
                 <TabsTrigger value="suggestions" className="rounded-2xl font-bold gap-2 text-sm">
-                  <MessageSquare className="h-4 w-4" /> {profile?.role === ROLES.CLIENT ? 'Request Changes' : 'Client Suggestions'}
+                  <MessageSquare className="h-4 w-4" /> {profile?.role === ROLES.CLIENT ? 'Request Changes' : 'Activity Feed'}
                 </TabsTrigger>
                 <TabsTrigger value="history" className="rounded-2xl font-bold gap-2 text-sm">
                   <History className="h-4 w-4" /> Audit Log
@@ -180,7 +181,7 @@ export default function TaskDetailPage() {
                 <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                   <form onSubmit={handlePostMessage} className="space-y-4">
                     <Label className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">
-                      {profile?.role === ROLES.CLIENT ? 'Submit Suggestion to Developer' : 'Reply to Client'}
+                      {profile?.role === ROLES.CLIENT ? 'Submit Suggestion to Developer' : 'Post Update or Reply'}
                     </Label>
                     <Textarea 
                       placeholder={profile?.role === ROLES.CLIENT ? "Describe the changes you'd like to see..." : "Post a project update or reply to feedback..."} 
@@ -242,7 +243,7 @@ export default function TaskDetailPage() {
           </div>
 
           <div className="space-y-8">
-            {canUpdateProgress && (
+            {canUpdateProgress ? (
               <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
                 <h3 className="text-lg font-bold mb-8 flex items-center gap-3 text-primary">
                   <TrendingUp className="h-5 w-5" /> Developer Controls
@@ -269,12 +270,33 @@ export default function TaskDetailPage() {
                   </Button>
                 </div>
               </Card>
+            ) : (
+               <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
+                 <h3 className="text-lg font-bold mb-6 flex items-center gap-3 text-muted-foreground">
+                   <Clock className="h-5 w-5" /> Project Timeline
+                 </h3>
+                 <div className="space-y-4">
+                   <div className="p-4 rounded-xl bg-secondary/10">
+                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Current Status</p>
+                     <p className="font-bold text-primary">{task.status}</p>
+                   </div>
+                   <div className="p-4 rounded-xl bg-secondary/10">
+                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Completion</p>
+                     <p className="font-bold text-primary">{task.progress}%</p>
+                   </div>
+                   <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                     <p className="text-xs text-muted-foreground italic">
+                       {profile?.role === ROLES.ADMIN ? "Only the assigned Developer can modify project status." : "Your developer will update progress as milestones are reached."}
+                     </p>
+                   </div>
+                 </div>
+               </Card>
             )}
 
-            <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
-              <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-8 text-muted-foreground">Workflow Execution</h3>
-              <div className="space-y-3">
-                {canUpdateProgress ? (
+            {canUpdateProgress && (
+              <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-8 text-muted-foreground">Workflow Execution</h3>
+                <div className="space-y-3">
                   <div className="grid grid-cols-1 gap-3">
                     <Button 
                       variant={task.status === 'Pending' ? "default" : "outline"}
@@ -307,26 +329,9 @@ export default function TaskDetailPage() {
                       <CircleCheck className="h-5 w-5" /> Mark as Completed
                     </Button>
                   </div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="p-6 rounded-2xl bg-secondary/10 flex flex-col items-center gap-3">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Task State</p>
-                      <Badge className="bg-primary text-white font-bold px-4 py-2 rounded-xl text-sm uppercase">
-                        {task.status}
-                      </Badge>
-                    </div>
-                    <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 space-y-4">
-                      <p className="text-xs font-bold text-primary flex items-center gap-2">
-                        <Info className="h-4 w-4" /> Client Portal Note
-                      </p>
-                      <p className="text-xs text-muted-foreground leading-relaxed italic">
-                        "As a client, your feedback directly alerts the developer. Use the message tool to provide details for modifications."
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>
