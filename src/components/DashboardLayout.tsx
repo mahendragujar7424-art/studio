@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
@@ -12,7 +12,9 @@ import {
   LogOut, 
   Menu,
   User as UserIcon,
-  Briefcase
+  Briefcase,
+  UserCheck,
+  UserGroup
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -21,6 +23,7 @@ import { getAuth, signOut } from 'firebase/auth';
 import { ROLES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import LinkComponent from 'next/link';
 
 interface SidebarLinkProps {
   href: string;
@@ -30,7 +33,7 @@ interface SidebarLinkProps {
 }
 
 const SidebarLink = ({ href, icon: Icon, children, active }: SidebarLinkProps) => (
-  <Link
+  <LinkComponent
     href={href}
     className={cn(
       "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
@@ -41,7 +44,7 @@ const SidebarLink = ({ href, icon: Icon, children, active }: SidebarLinkProps) =
   >
     <Icon className={cn("h-5 w-5", active ? "" : "group-hover:scale-110 transition-transform")} />
     <span className="font-medium">{children}</span>
-  </Link>
+  </LinkComponent>
 );
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -90,7 +93,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Projects', href: '/dashboard/tasks', icon: CheckSquare },
     ...(role === ROLES.ADMIN ? [
       { name: 'Teams', href: '/dashboard/teams', icon: Briefcase },
-      { name: 'Users', href: '/dashboard/users', icon: Users }
+      { name: 'Developers', href: '/dashboard/developers', icon: UserCheck },
+      { name: 'Clients', href: '/dashboard/clients', icon: Users }
     ] : []),
     { name: 'Identity', href: '/dashboard/profile', icon: UserIcon },
     { name: 'Preferences', href: '/dashboard/settings', icon: Settings },
