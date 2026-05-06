@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, query, where, addDoc } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { ROLES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -14,12 +14,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Users, 
   Plus, 
-  Search, 
   Briefcase, 
-  UserPlus,
   ShieldAlert,
   Loader2,
-  Check
+  X
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -116,7 +114,7 @@ export default function TeamsPage() {
     toast({ title: "Assignment Removed", description: "Developer unassigned from team." });
   };
 
-  if (profile?.role !== ROLES.ADMIN) {
+  if (profile && profile.role !== ROLES.ADMIN) {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
@@ -161,14 +159,24 @@ export default function TeamsPage() {
                   <ScrollArea className="h-48 rounded-xl border-2 p-4 bg-secondary/5">
                     <div className="space-y-3">
                       {developers?.map((dev) => (
-                        <div key={dev.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer" onClick={() => toggleDeveloperSelection(dev.id)}>
-                          <Checkbox checked={selectedDeveloperIds.includes(dev.id)} onCheckedChange={() => toggleDeveloperSelection(dev.id)} />
+                        <div 
+                          key={dev.id} 
+                          className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer" 
+                          onClick={() => toggleDeveloperSelection(dev.id)}
+                        >
+                          <Checkbox 
+                            checked={selectedDeveloperIds.includes(dev.id)} 
+                            onCheckedChange={() => {}} // Controlled by the parent div onClick
+                          />
                           <div className="flex flex-col">
                             <span className="text-sm font-bold">{dev.name}</span>
                             <span className="text-[10px] text-muted-foreground">{dev.email}</span>
                           </div>
                         </div>
                       ))}
+                      {(!developers || developers.length === 0) && (
+                        <p className="text-center py-10 text-xs text-muted-foreground italic">No available developers found.</p>
+                      )}
                     </div>
                   </ScrollArea>
                 </div>
@@ -208,10 +216,14 @@ export default function TeamsPage() {
                           <div className="h-2 w-2 rounded-full bg-green-500" />
                           <span className="text-xs font-bold">{dev.name}</span>
                           <button 
-                            onClick={() => removeDevFromTeam(dev.id, team.id, team.developerIds)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              removeDevFromTeam(dev.id, team.id, team.developerIds);
+                            }}
                             className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
                           >
-                            ×
+                            <X className="h-3 w-3" />
                           </button>
                         </Badge>
                       ))}
@@ -223,7 +235,7 @@ export default function TeamsPage() {
 
                   <div className="pt-6 border-t flex items-center justify-between">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                      Active since {format(new Date(team.createdAt), 'MMM yyyy')}
+                      Active since {team.createdAt ? format(new Date(team.createdAt), 'MMM yyyy') : 'N/A'}
                     </span>
                     <div className="flex items-center gap-2 text-primary">
                        <Briefcase className="h-4 w-4" />
