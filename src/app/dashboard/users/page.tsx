@@ -60,7 +60,6 @@ export default function UsersPage() {
   const { data: profile } = useDoc(currentUserRef);
 
   // CRITICAL: Only run the users query if the profile exists and the user is an Admin.
-  // This prevents permission errors during hydration or unauthorized access.
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return collection(firestore, 'users');
@@ -125,7 +124,7 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = (userId: string, userName: string) => {
-    if (!confirm(`Are you sure you want to remove ${userName}? This will NOT delete their Auth account, only their CRM profile.`)) return;
+    if (!confirm(`Are you sure you want to remove ${userName}? This will remove their CRM profile data.`)) return;
     
     if (!firestore) return;
 
@@ -144,7 +143,7 @@ export default function UsersPage() {
     u.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (!profile) return null; // Wait for profile loading
+  if (!profile && isUsersLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
 
   if (profile?.role !== ROLES.ADMIN) {
     return (
@@ -191,7 +190,13 @@ export default function UsersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase tracking-widest">Full Name</Label>
-                  <Input placeholder="John Doe" value={newName} onChange={e => setNewName(setNewName(e.target.value))} required className="h-12 rounded-xl" />
+                  <Input 
+                    placeholder="John Doe" 
+                    value={newName} 
+                    onChange={e => setNewName(e.target.value)} 
+                    required 
+                    className="h-12 rounded-xl" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase tracking-widest">Email Address</Label>
