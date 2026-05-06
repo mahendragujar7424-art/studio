@@ -3,33 +3,58 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { LayoutDashboard, LogIn, Sparkles } from 'lucide-react';
-import Link from 'next/link';
+import { ROLES } from '@/lib/constants';
+import { LogIn, ShieldCheck } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function LoginPage() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [role, setRole] = React.useState<string>(ROLES.CLIENT);
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const auth = getAuth();
+    
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard');
+      // 1. Authenticate with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // 2. Verify Role in Firestore
+      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      
+      if (!userDoc.exists()) {
+        await signOut(auth);
+        throw new Error("User profile not found.");
+      }
+
+      const userData = userDoc.data();
+      
+      // 3. Check if the selected role matches the database
+      if (userData.role !== role) {
+        await signOut(auth);
+        throw new Error(`Access denied. Your account is not registered as a ${role}.`);
+      }
+
       toast({
         title: "Success",
-        description: "Logged in successfully",
+        description: `Logged in as ${role} successfully.`,
       });
+      router.push('/dashboard');
     } catch (error: any) {
       toast({
         title: "Error",
@@ -50,16 +75,25 @@ export default function LoginPage() {
           <div className="h-16 w-16 bg-primary rounded-3xl flex items-center justify-center text-primary-foreground font-bold text-3xl mx-auto shadow-2xl shadow-primary/20 animate-bounce">
             C
           </div>
-          <h1 className="text-3xl font-bold font-headline tracking-tight">Welcome to CloudCRM</h1>
-          <p className="text-muted-foreground">Access your professional workspace</p>
+          <h1 className="text-3xl font-bold font-headline tracking-tight">CloudCRM Workspace</h1>
+          <p className="text-muted-foreground">Log in with your assigned role</p>
         </div>
 
         <Card className="border-none shadow-2xl bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-4">
-          <CardHeader className="space-y-1 pb-8">
+          <CardHeader className="space-y-4 pb-8">
             <CardTitle className="text-2xl font-bold font-headline flex items-center gap-2">
-              <LogIn className="h-5 w-5 text-primary" /> Login
+              <LogIn className="h-5 w-5 text-primary" /> Security Check
             </CardTitle>
-            <CardDescription>Enter your credentials to continue</CardDescription>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-widest ml-1">Accessing as:</Label>
+              <Tabs defaultValue={ROLES.CLIENT} onValueChange={setRole} className="w-full">
+                <TabsList className="grid grid-cols-3 h-12 rounded-xl bg-secondary/20 p-1">
+                  <TabsTrigger value={ROLES.CLIENT} className="rounded-lg font-bold text-[10px] uppercase">Client</TabsTrigger>
+                  <TabsTrigger value={ROLES.DEVELOPER} className="rounded-lg font-bold text-[10px] uppercase">Dev</TabsTrigger>
+                  <TabsTrigger value={ROLES.ADMIN} className="rounded-lg font-bold text-[10px] uppercase">Admin</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-6">
@@ -75,10 +109,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between ml-1">
-                  <Label className="text-xs font-bold uppercase tracking-widest">Password</Label>
-                  <Button variant="link" className="px-0 h-auto text-xs font-bold text-primary">Forgot?</Button>
-                </div>
+                <Label className="text-xs font-bold uppercase tracking-widest ml-1">Password</Label>
                 <Input 
                   type="password" 
                   placeholder="••••••••" 
@@ -89,18 +120,13 @@ export default function LoginPage() {
                 />
               </div>
               <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all hover:scale-[1.02]" disabled={loading}>
-                {loading ? "Verifying..." : "Sign In to Workspace"}
+                {loading ? "Verifying Role..." : "Authorize Access"}
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 pt-6">
-            <div className="relative w-full">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-muted" /></div>
-              <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-4 text-muted-foreground font-bold">New Here?</span></div>
-            </div>
-            <Button variant="outline" className="w-full h-14 rounded-2xl border-2 hover:bg-primary/5 font-bold" asChild>
-              <Link href="/register">Create Professional Account</Link>
-            </Button>
+          <CardFooter className="pt-6 border-t flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4 text-accent" />
+            Admin-managed registration only
           </CardFooter>
         </Card>
       </div>
