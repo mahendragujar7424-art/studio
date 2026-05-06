@@ -4,8 +4,8 @@
 import * as React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { initializeApp, deleteApp, getApp } from 'firebase/app';
+import { collection, doc, query, setDoc, deleteDoc } from 'firebase/firestore';
+import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { ROLES } from '@/lib/constants';
@@ -19,7 +19,6 @@ import {
   Shield, 
   Mail, 
   Clock,
-  MoreVertical,
   Loader2
 } from 'lucide-react';
 import { 
@@ -59,10 +58,12 @@ export default function UsersPage() {
 
   const { data: profile } = useDoc(currentUserRef);
 
+  // CRITICAL: Only run the users query if the profile exists and the user is an Admin.
+  // This prevents permission errors during hydration or unauthorized access.
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return collection(firestore, 'users');
-  }, [firestore]);
+  }, [firestore, profile?.role]);
 
   const { data: users, isLoading: isUsersLoading } = useCollection(usersQuery);
 
@@ -72,8 +73,6 @@ export default function UsersPage() {
 
     setIsSubmitting(true);
     
-    // Logic for Admin creating a user: 
-    // We use a secondary Firebase app instance to create the Auth account without logging the Admin out.
     let secondaryApp;
     try {
       secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
@@ -91,10 +90,8 @@ export default function UsersPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      // Create Firestore doc
       await setDoc(doc(firestore, 'users', newUser.uid), userData);
 
-      // Add to admin role marker if applicable
       if (newRole === ROLES.ADMIN) {
         await setDoc(doc(firestore, 'roles_admin', newUser.uid), {
           id: newUser.uid,
@@ -129,7 +126,6 @@ export default function UsersPage() {
     
     try {
       await deleteDoc(doc(firestore, 'users', userId));
-      // Also remove from admin roles if they were admin
       await deleteDoc(doc(firestore, 'roles_admin', userId));
       toast({ title: "User Removed", description: "Profile access has been revoked." });
     } catch (error: any) {
@@ -141,6 +137,8 @@ export default function UsersPage() {
     u.name.toLowerCase().includes(search.toLowerCase()) || 
     u.email.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (!profile) return null; // Wait for profile loading
 
   if (profile?.role !== ROLES.ADMIN) {
     return (
@@ -208,7 +206,6 @@ export default function UsersPage() {
           </Dialog>
         </div>
 
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input 
@@ -219,7 +216,6 @@ export default function UsersPage() {
           />
         </div>
 
-        {/* User Table */}
         <Card className="border-none shadow-sm bg-white rounded-3xl overflow-hidden">
           <Table>
             <TableHeader className="bg-secondary/20">

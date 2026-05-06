@@ -59,15 +59,17 @@ export default function TasksPage() {
 
   const { data: profile } = useDoc(userRef);
 
+  // CRITICAL: Only fetch lists of users if the current user is an Admin.
+  // This prevents permission errors for Developers and Clients.
   const developersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
-  }, [firestore]);
+  }, [firestore, profile?.role]);
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.CLIENT));
-  }, [firestore]);
+  }, [firestore, profile?.role]);
 
   const { data: developers } = useCollection(developersQuery);
   const { data: clients } = useCollection(clientsQuery);
@@ -261,7 +263,7 @@ export default function TasksPage() {
                   </div>
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <UserIcon className="h-4 w-4 text-primary" />
-                    {developers?.find(d => d.id === task.assignedDeveloperId)?.name || 'N/A'}
+                    {profile?.role === ROLES.ADMIN ? (developers?.find(d => d.id === task.assignedDeveloperId)?.name || 'N/A') : (task.assignedDeveloperId === user?.uid ? profile?.name : 'Assigned')}
                   </div>
                 </div>
                 <Button asChild variant="ghost" className="w-full rounded-xl font-bold">
