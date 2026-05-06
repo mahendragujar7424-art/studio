@@ -10,6 +10,7 @@ export type Role = typeof ROLES[keyof typeof ROLES];
 export const TASK_STATUS = {
   PENDING: 'Pending',
   IN_PROGRESS: 'In Progress',
+  UNDER_REVIEW: 'Under Review',
   COMPLETED: 'Completed',
   ARCHIVED: 'Archived',
 } as const;

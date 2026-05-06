@@ -15,7 +15,8 @@ import {
   TrendingUp,
   Activity,
   ArrowUpRight,
-  Archive
+  Archive,
+  MessageSquare
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -37,7 +38,6 @@ export default function DashboardPage() {
     if (!firestore || !profile || !user?.uid) return null;
     const tasksRef = collection(firestore, 'tasks');
     
-    // We filter out ARCHIVED tasks from the dashboard to keep it clean
     if (profile.role === ROLES.ADMIN) return query(tasksRef, where('status', '!=', TASK_STATUS.ARCHIVED));
     if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('assignedDeveloperId', '==', user.uid), where('status', '!=', TASK_STATUS.ARCHIVED));
     if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid), where('status', '!=', TASK_STATUS.ARCHIVED));
@@ -48,7 +48,7 @@ export default function DashboardPage() {
 
   const completedCount = myTasks?.filter(t => t.status === TASK_STATUS.COMPLETED).length || 0;
   const inProgressCount = myTasks?.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length || 0;
-  const pendingCount = myTasks?.filter(t => t.status === TASK_STATUS.PENDING).length || 0;
+  const reviewCount = myTasks?.filter(t => t.status === TASK_STATUS.UNDER_REVIEW).length || 0;
   const totalCount = myTasks?.length || 0;
   
   const activeTasks = myTasks?.filter(t => t.status !== TASK_STATUS.COMPLETED && t.status !== TASK_STATUS.ARCHIVED) || [];
@@ -62,18 +62,18 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="space-y-10">
         <div>
-          <h1 className="text-4xl font-bold font-headline tracking-tight">Dashboard Overview</h1>
-          <p className="text-muted-foreground mt-2 text-lg">Welcome back, {profile?.name || 'User'}. Here's your workspace summary.</p>
+          <h1 className="text-4xl font-bold font-headline tracking-tight">Workspace Overview</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Welcome back, {profile?.name || 'User'}. Here's the live project health.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="border-none shadow-sm bg-white overflow-hidden group">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+                <div className="p-3 rounded-2xl bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white transition-all duration-300">
                   <CheckCircle className="h-6 w-6" />
                 </div>
-                <Badge variant="secondary" className="bg-green-50 text-green-700 border-none font-bold">READY</Badge>
+                <Badge variant="secondary" className="bg-green-50 text-green-700 border-none font-bold text-[9px]">FINALIZED</Badge>
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Completed</p>
@@ -86,12 +86,12 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
-                  <Clock className="h-6 w-6" />
+                  <Activity className="h-6 w-6" />
                 </div>
-                <Activity className="h-5 w-5 text-blue-200" />
+                <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-none font-bold text-[9px]">ACTIVE</Badge>
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Active</p>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">In Progress</p>
                 <p className="text-3xl font-bold font-headline">{inProgressCount}</p>
               </div>
             </CardContent>
@@ -101,13 +101,13 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-all duration-300">
-                  <CircleAlert className="h-6 w-6" />
+                  <Clock className="h-6 w-6" />
                 </div>
-                <TrendingUp className="h-5 w-5 text-orange-200" />
+                <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-none font-bold text-[9px]">REVIEW</Badge>
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Pending</p>
-                <p className="text-3xl font-bold font-headline">{pendingCount}</p>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Pending Review</p>
+                <p className="text-3xl font-bold font-headline">{reviewCount}</p>
               </div>
             </CardContent>
           </Card>
@@ -118,10 +118,10 @@ export default function DashboardPage() {
                 <div className="p-3 rounded-2xl bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all duration-300">
                   <TrendingUp className="h-6 w-6" />
                 </div>
-                <span className="text-[10px] font-bold text-purple-600/50 uppercase">Velocity</span>
+                <span className="text-[10px] font-bold text-purple-600/50 uppercase">Momentum</span>
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Active Progress</p>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Live Completion</p>
                 <p className="text-3xl font-bold font-headline">{avgProgress}%</p>
               </div>
             </CardContent>
@@ -133,8 +133,8 @@ export default function DashboardPage() {
             <CardHeader className="p-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl font-bold font-headline">Recent Activity</CardTitle>
-                  <CardDescription>Track latest workspace milestones and completion rates.</CardDescription>
+                  <CardTitle className="text-xl font-bold font-headline">Live Project Feed</CardTitle>
+                  <CardDescription>Real-time status of your active deliveries.</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -146,7 +146,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-4 flex-1">
                         <div className={cn(
                           "h-10 w-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm",
-                          task.status === TASK_STATUS.COMPLETED ? "bg-green-500" : task.status === TASK_STATUS.IN_PROGRESS ? "bg-blue-500" : "bg-orange-500"
+                          task.status === TASK_STATUS.COMPLETED ? "bg-green-500" : task.status === TASK_STATUS.UNDER_REVIEW ? "bg-orange-500" : "bg-blue-500"
                         )}>
                           {task.title.charAt(0)}
                         </div>
@@ -169,7 +169,7 @@ export default function DashboardPage() {
                 ))}
                 {(!myTasks || myTasks.length === 0) && (
                   <div className="text-center py-10 text-muted-foreground italic">
-                    No active tasks found.
+                    No active projects at this time.
                   </div>
                 )}
               </div>
@@ -178,33 +178,31 @@ export default function DashboardPage() {
 
           <Card className="border-none shadow-sm bg-white rounded-3xl">
             <CardHeader className="p-8">
-              <CardTitle className="text-xl font-bold font-headline">Project Health</CardTitle>
-              <CardDescription>Overall completion metrics.</CardDescription>
+              <CardTitle className="text-xl font-bold font-headline">Collaboration Hub</CardTitle>
+              <CardDescription>Instant access to task logs.</CardDescription>
             </CardHeader>
             <CardContent className="p-8 pt-0 space-y-8">
-              <div className="space-y-4">
-                <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                  <span>Completed Tasks</span>
-                  <span className="text-green-600">{overallCompletionRate}%</span>
+              <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10">
+                <div className="flex items-center gap-3 text-primary mb-3">
+                  <MessageSquare className="h-5 w-5" />
+                  <span className="font-bold text-sm">Direct Feedback</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {profile?.role === ROLES.CLIENT 
+                    ? "As a stakeholder, you can leave suggestions on any task. Your developer will be notified instantly."
+                    : "Clients see your updates in real-time. Use the task log to clarify requirements and post milestones."}
+                </p>
+              </div>
+              <div className="space-y-4 pt-4">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <span>Total Delivery Progress</span>
+                  <span className="text-primary">{overallCompletionRate}%</span>
                 </div>
                 <Progress value={overallCompletionRate} className="h-2" />
               </div>
-              <div className="space-y-4">
-                <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                  <span>Current Momentum</span>
-                  <span className="text-blue-600">{avgProgress}%</span>
-                </div>
-                <Progress value={avgProgress} className="h-2" />
-              </div>
-              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
-                <p className="text-sm font-bold text-primary">Workspace Note</p>
-                <p className="text-xs text-muted-foreground mt-1">Developers can update granular completion percentages. Clients see these updates reflected instantly in their portal.</p>
-              </div>
-              <div className="flex justify-center">
-                <Button variant="ghost" asChild className="text-xs font-bold gap-2 text-muted-foreground">
-                   <Link href="/dashboard/tasks?status=Archived"><Archive className="h-3 w-3" /> View Archive</Link>
-                </Button>
-              </div>
+              <Button asChild className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20">
+                <Link href="/dashboard/tasks">Enter Project Workspace</Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
