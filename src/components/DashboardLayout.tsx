@@ -11,7 +11,8 @@ import {
   Settings, 
   LogOut, 
   Menu,
-  User as UserIcon
+  User as UserIcon,
+  Briefcase
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -87,7 +88,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const links = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Projects', href: '/dashboard/tasks', icon: CheckSquare },
-    ...(role === ROLES.ADMIN ? [{ name: 'Users', href: '/dashboard/users', icon: Users }] : []),
+    ...(role === ROLES.ADMIN ? [
+      { name: 'Teams', href: '/dashboard/teams', icon: Briefcase },
+      { name: 'Users', href: '/dashboard/users', icon: Users }
+    ] : []),
     { name: 'Identity', href: '/dashboard/profile', icon: UserIcon },
     { name: 'Preferences', href: '/dashboard/settings', icon: Settings },
   ];

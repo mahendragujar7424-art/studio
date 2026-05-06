@@ -24,9 +24,13 @@
           "type": "string",
           "description": "The role of the user within the application (e.g., Admin, Developer, Client). Possible values: 'Admin', 'Developer', 'Client'."
         },
+        "teamId": {
+          "type": "string",
+          "description": "Reference to the Team this user (Developer) belongs to."
+        },
         "assignedDeveloperId": {
           "type": "string",
-          "description": "Reference to the User (Developer role) who is assigned to this client. Only applicable if the user's role is 'Client'. (Relationship: Developer 1:N Client)"
+          "description": "Reference to the User (Developer role) who is assigned to this client."
         },
         "createdAt": {
           "type": "string",
@@ -48,128 +52,70 @@
         "updatedAt"
       ]
     },
+    "Team": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Team",
+      "type": "object",
+      "description": "Represents a team within the organization.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Team."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the team."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the team's purpose."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of creation.",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "createdAt"]
+    },
     "Task": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Task",
       "type": "object",
-      "description": "Represents a specific task within the CRM, managed by developers and viewed by clients.",
+      "description": "Represents a specific task within the CRM.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Task entity."
-        },
-        "title": {
-          "type": "string",
-          "description": "The title or brief name of the task."
-        },
-        "description": {
-          "type": "string",
-          "description": "A detailed description of the task."
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the task. Possible values: 'Pending', 'In Progress', 'Completed'."
-        },
-        "progress": {
-          "type": "number",
-          "description": "The completion percentage of the task (0-100).",
-          "minimum": 0,
-          "maximum": 100
-        },
-        "priority": {
-          "type": "string",
-          "description": "The priority level of the task. Possible values: 'Low', 'Medium', 'High'."
-        },
-        "assignedDeveloperId": {
-          "type": "string",
-          "description": "Reference to the User (Developer role) assigned to complete this task. (Relationship: User 1:N Task)"
-        },
-        "assignedClientId": {
-          "type": "string",
-          "description": "Reference to the User (Client role) associated with this task. (Relationship: User 1:N Task)"
-        },
-        "createdById": {
-          "type": "string",
-          "description": "Reference to the User who created this task. (Relationship: User 1:N Task)"
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "The target date for the task's completion.",
-          "format": "date"
-        },
-        "commentIds": {
-          "type": "array",
-          "description": "References to Comment entities related to this task. (Relationship: Task 1:N Comment)",
-          "items": {
-            "type": "string"
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the task was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the task was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string" },
+        "progress": { "type": "number" },
+        "priority": { "type": "string" },
+        "assignedDeveloperId": { "type": "string" },
+        "assignedClientId": { "type": "string" },
+        "createdById": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "title",
-        "description",
-        "status",
-        "priority",
-        "assignedDeveloperId",
-        "assignedClientId",
-        "createdById",
-        "dueDate",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["id", "title", "status", "assignedDeveloperId", "assignedClientId", "createdById", "createdAt", "updatedAt"]
     },
     "Comment": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Comment",
       "type": "object",
-      "description": "Represents a comment or update made on a specific task.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Comment entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who posted this comment. (Relationship: User 1:N Comment)"
-        },
-        "taskId": {
-          "type": "string",
-          "description": "Reference to the Task to which this comment belongs. (Relationship: Task 1:N Comment)"
-        },
-        "message": {
-          "type": "string",
-          "description": "The content of the comment."
-        },
-        "timestamp": {
-          "type": "string",
-          "description": "Timestamp when the comment was created.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "taskId": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "userId",
-        "taskId",
-        "message",
-        "timestamp"
-      ]
+      "required": ["id", "userId", "taskId", "message", "timestamp"]
     }
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
@@ -178,71 +124,42 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles, including role and assignedDeveloperId for client users. Supports self-management and Admin management.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the user."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "User profiles with role-based metadata."
         }
       },
       {
         "path": "/roles_admin/{adminId}",
         "definition": {
           "entityName": "AdminRole",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "A marker collection used for efficient DBAC to identify Admin users. A document exists here if the userId is an Admin.",
-          "params": [
-            {
-              "name": "adminId",
-              "description": "The unique ID of an Admin user (matching their userId)."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "Admin privileges marker."
+        }
+      },
+      {
+        "path": "/teams/{teamId}",
+        "definition": {
+          "entityName": "Team",
+          "schema": { "$ref": "#/backend/entities/Team" },
+          "description": "Collection of organizational teams."
         }
       },
       {
         "path": "/tasks/{taskId}",
         "definition": {
           "entityName": "Task",
-          "schema": {
-            "$ref": "#/backend/entities/Task"
-          },
-          "description": "Stores CRM tasks. Includes denormalized 'assignedDeveloperId' and 'assignedClientId' for authorization independence, enabling robust and queryable access patterns. Clients viewing tasks assigned to 'their' developer will require a single, self-referential 'get()' call to their own user profile in security rules.",
-          "params": [
-            {
-              "name": "taskId",
-              "description": "The unique ID of the task."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/Task" },
+          "description": "CRM tasks."
         }
       },
       {
         "path": "/tasks/{taskId}/comments/{commentId}",
         "definition": {
           "entityName": "Comment",
-          "schema": {
-            "$ref": "#/backend/entities/Comment"
-          },
-          "description": "Stores comments related to a specific task. Due to schema constraints, authorization for comments will require 'get()' calls to the parent '/tasks/{taskId}' document to verify user permissions (Admin, assigned Developer, or assigned Client's developer).",
-          "params": [
-            {
-              "name": "taskId",
-              "description": "The unique ID of the parent task."
-            },
-            {
-              "name": "commentId",
-              "description": "The unique ID of the comment."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/Comment" },
+          "description": "Task comments."
         }
       }
-    ],
-    "reasoning": "The Firestore structure for the CRM application is designed to adhere to the core principles of Authorization Independence, Structural Segregation, and Access Modeling, prioritizing secure, scalable, and debuggable security rules. 1.  **Users (`/users/{userId}`):** User profiles are stored in a top-level collection. Each document contains essential user details, including their `role` (Admin, Developer, Client) and, for Client users, their `assignedDeveloperId`. This path-based ownership (`request.auth.uid == userId`) provides straightforward self-access and allows Admin users (whose role is explicitly verified) to manage all user accounts. 2.  **Admin Roles (`/roles_admin/{adminId}`):** To implement a robust Database Access Control (DBAC) for the 'Admin' role without relying on custom claims or complex queries, a dedicated marker collection `/roles_admin/{adminId}` is used. An Admin user's `uid` will correspond to a document `adminId` in this collection. Security rules can then use `exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))` for efficient and atomic checks of administrative privileges. This strictly follows the DBAC principle. 3.  **Tasks (`/tasks/{taskId}`):** Tasks are stored in a top-level collection. Each `Task` document explicitly includes `assignedDeveloperId` and `assignedClientId`. This crucial denormalization ensures **Authorization Independence (Strategy A)** for task access: rules can determine if a user (Admin, Developer, or Client) can read/write a task by directly inspecting the task document's fields, without needing to perform `get()` calls to other user or parent documents. This design inherently supports **Queryable Access Patterns (QAPs)** for `list` operations, as clients can query tasks filtered by `assignedDeveloperId` or `assignedClientId` matching their relevant IDs, and security rules can validate these filters directly against the document fields. A controlled exception to strict Authorization Independence is made for Client users: to fulfill the requirement of a client viewing \"tasks assigned to *their* developer\", security rules *will* need to perform a `get()` call to the client's *own* user document (`/users/$(request.auth.uid)`) to retrieve their `assignedDeveloperId`. This is considered an acceptable, limited dependency as it targets a specific, self-owned document. 4.  **Comments (`/tasks/{taskId}/comments/{commentId}`):** Comments are structured as a subcollection under their respective tasks. While this hierarchical structure naturally groups comments with their tasks, due to the provided `Comment` schema not including denormalized authorization fields from the parent `Task` (e.g., `taskAssignedDeveloperId`, `taskAssignedClientId`), **Authorization Independence for comments is necessarily compromised (a violation of Strategy A)**. To authorize access to a comment, security rules **will require a `get()` call to the parent `Task` document (`/tasks/{taskId}`)** to retrieve the `assignedDeveloperId` and `assignedClientId`. This dependency is explicitly acknowledged. For `list` operations (QAPs) on comments, the security rules will similarly rely on reading the parent task to enforce access based on developer/client assignments. This decision balances adherence to the immutable schema with the functional security requirements, acknowledging the implications for rule complexity and potential performance compared to a fully denormalized design for comments. This overall structure leverages structural segregation, explicit state modeling (e.g., `status` in Task), and consistent naming conventions to create a maintainable and secure Firestore database."
+    ]
   }
 }

@@ -3,11 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * CRM SECURITY RULES PHILOSOPHY
-     * Restricted Access: Registration is only possible by an Admin.
-     */
-
     // --- GLOBAL HELPER FUNCTIONS ---
 
     function isSignedIn() {
@@ -38,8 +33,6 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn();
       allow list: if isAdmin();
-      // Only Admins can create new user profiles. 
-      // EXCEPT: We allow the specific 'admin@crm.com' to create their own Admin profile for initial setup.
       allow create: if isAdmin() || (
         isOwner(userId) && 
         request.resource.data.email == 'admin@crm.com' && 
@@ -50,7 +43,6 @@ service cloud.firestore {
     }
 
     match /roles_admin/{adminId} {
-      // Allow any signed-in user to 'get' a marker to avoid rule deadlocks during isAdmin() checks
       allow get: if isSignedIn();
       allow list: if isAdmin();
       allow create: if isAdmin() || (
@@ -60,21 +52,19 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /teams/{teamId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     match /tasks/{taskId} {
-      // Allow signed-in users to list tasks. The query will be naturally constrained by the app's filters.
       allow list: if isSignedIn();
-      
-      // Strict access for individual document reads
       allow get: if isAdmin() || isTaskMember(resource.data);
-      
-      allow create: if (isAdmin() || getUserData(request.auth.uid).role == 'Developer') 
-                    && request.resource.data.createdById == request.auth.uid;
-      
+      allow create: if isAdmin() || (getUserData(request.auth.uid).role == 'Developer' && request.resource.data.createdById == request.auth.uid);
       allow update: if resource != null && (isAdmin() || (
                       getUserData(request.auth.uid).role == 'Developer' && 
                       resource.data.assignedDeveloperId == request.auth.uid
                     )) && request.resource.data.createdById == resource.data.createdById;
-      
       allow delete: if resource != null && isAdmin();
     }
 
@@ -82,17 +72,10 @@ service cloud.firestore {
       function getParentTask() {
         return get(/databases/$(database)/documents/tasks/$(taskId)).data;
       }
-
       allow list: if isAdmin() || isTaskMember(getParentTask());
-      
       allow get: if isAdmin() || isTaskMember(getParentTask());
-      
-      allow create: if (isAdmin() || isTaskMember(getParentTask())) 
-                    && request.resource.data.userId == request.auth.uid;
-      
-      allow update: if resource != null && (isAdmin() || isOwner(resource.data.userId))
-                    && request.resource.data.userId == resource.data.userId;
-      
+      allow create: if (isAdmin() || isTaskMember(getParentTask())) && request.resource.data.userId == request.auth.uid;
+      allow update: if resource != null && (isAdmin() || isOwner(resource.data.userId)) && request.resource.data.userId == resource.data.userId;
       allow delete: if resource != null && (isAdmin() || isOwner(resource.data.userId));
     }
   }

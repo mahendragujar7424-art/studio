@@ -4,26 +4,25 @@
 import * as React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { ROLES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   UserPlus, 
   Search, 
   Trash2, 
   Shield, 
-  Mail, 
   Clock,
-  Loader2,
   AlertTriangle,
   UserCog,
-  ShieldCheck
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -65,7 +64,6 @@ export default function UsersPage() {
 
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
-  const [newPassword, setNewPassword] = React.useState('');
   const [newRole, setNewRole] = React.useState<string>(ROLES.CLIENT);
 
   const currentUserRef = useMemoFirebase(() => {
@@ -88,10 +86,12 @@ export default function UsersPage() {
 
     setIsSubmitting(true);
     let secondaryApp;
+    const FIXED_PASSWORD = "123456"; // Firebase requires min 6 chars
+
     try {
       secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
       const secondaryAuth = getAuth(secondaryApp);
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword);
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, FIXED_PASSWORD);
       const newUser = userCredential.user;
 
       const userData = {
@@ -111,7 +111,7 @@ export default function UsersPage() {
         setDocumentNonBlocking(adminRoleRef, { id: newUser.uid, createdAt: new Date().toISOString() }, { merge: false });
       }
 
-      toast({ title: "User Created", description: `${newName} has been added.` });
+      toast({ title: "User Created", description: `${newName} has been provisioned with default password.` });
       setIsCreateOpen(false);
       resetForm();
     } catch (error: any) {
@@ -146,7 +146,6 @@ export default function UsersPage() {
   const resetForm = () => {
     setNewName('');
     setNewEmail('');
-    setNewPassword('');
     setNewRole(ROLES.CLIENT);
   };
 
@@ -181,18 +180,18 @@ export default function UsersPage() {
       <div className="space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">User Management</h1>
-            <p className="text-muted-foreground mt-2 text-lg">Control access and roles across the organization.</p>
+            <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Member Directory</h1>
+            <p className="text-muted-foreground mt-2 text-lg">Manage workspace access and role assignments.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
-                <UserPlus className="h-5 w-5" /> Add New Member
+                <UserPlus className="h-5 w-5" /> Provision New User
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold font-headline">Register User</DialogTitle>
+                <DialogTitle className="text-2xl font-bold font-headline">Create Workspace Account</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreateUser} className="space-y-4 pt-4">
                 <div className="space-y-2">
@@ -207,16 +206,16 @@ export default function UsersPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Name</Label>
-                  <Input value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl" />
+                  <Label className="text-xs font-bold uppercase">Full Name</Label>
+                  <Input placeholder="John Doe" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Email</Label>
-                  <Input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
+                  <Label className="text-xs font-bold uppercase">Email Address</Label>
+                  <Input type="email" placeholder="john@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Password</Label>
-                  <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required className="h-12 rounded-xl" />
+                <div className="p-4 rounded-xl bg-secondary/10 flex items-center gap-3">
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Default Password: 123456</p>
                 </div>
                 <DialogFooter className="pt-4">
                   <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
@@ -231,7 +230,7 @@ export default function UsersPage() {
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input 
-            placeholder="Search users..." 
+            placeholder="Search by name or email..." 
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
@@ -308,7 +307,6 @@ export default function UsersPage() {
         </Card>
       </div>
 
-      {/* Edit Role Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="rounded-[2rem]">
           <DialogHeader>
@@ -328,9 +326,6 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-[10px] text-muted-foreground italic">
-              Changing a role to Administrator will grant this user full management access to all projects and user records.
-            </p>
           </div>
           <DialogFooter>
             <Button onClick={handleUpdateUserRole} className="w-full h-12 rounded-xl font-bold">Save Changes</Button>
@@ -338,7 +333,6 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
         <AlertDialogContent className="rounded-[2.5rem] p-8">
           <AlertDialogHeader>
