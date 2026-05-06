@@ -14,12 +14,11 @@ import {
   Plus, 
   Search, 
   Filter, 
-  MoreVertical, 
   Calendar, 
   User as UserIcon,
-  CheckCircle2,
+  CircleCheck,
   Clock,
-  AlertTriangle,
+  TriangleAlert,
   ArrowRight
 } from 'lucide-react';
 import { 
@@ -46,7 +45,6 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = React.useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
-  // New task form state
   const [newTitle, setNewTitle] = React.useState('');
   const [newDesc, setNewDesc] = React.useState('');
   const [newPriority, setNewPriority] = React.useState<string>(TASK_PRIORITY.MEDIUM);
@@ -61,7 +59,6 @@ export default function TasksPage() {
 
   const { data: profile } = useDoc(userRef);
 
-  // Users for assignment (for Admin)
   const developersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
@@ -107,9 +104,9 @@ export default function TasksPage() {
       setIsCreateOpen(false);
       setNewTitle('');
       setNewDesc('');
-      toast({ title: "Task Created", description: "Successfully assigned and logged." });
+      toast({ title: "Task Initialized", description: "Project assignment successful." });
     } catch (error: any) {
-      toast({ title: "Failed", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -133,31 +130,30 @@ export default function TasksPage() {
       <div className="space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight">Tasks Management</h1>
-            <p className="text-muted-foreground mt-2 text-lg">Manage, assign and monitor project lifecycles.</p>
+            <h1 className="text-4xl font-bold font-headline tracking-tight">Project Management</h1>
+            <p className="text-muted-foreground mt-2 text-lg">Central hub for tracking task progression and assignments.</p>
           </div>
           {profile?.role === ROLES.ADMIN && (
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
-                <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all">
+                <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
                   <Plus className="h-5 w-5" /> New Assignment
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[600px] rounded-[2.5rem] p-8">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-bold font-headline">Create New Task</DialogTitle>
-                  <CardDescription>Assign specific goals to developers and clients.</CardDescription>
+                  <DialogTitle className="text-2xl font-bold">Create New Task</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleCreateTask} className="space-y-6 pt-4">
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase tracking-widest">Title</Label>
-                    <Input placeholder="e.g. Implement Auth" value={newTitle} onChange={e => setNewTitle(e.target.value)} required className="h-12 rounded-xl" />
+                    <Label className="text-xs font-bold uppercase">Title</Label>
+                    <Input placeholder="Task name..." value={newTitle} onChange={e => setNewTitle(e.target.value)} required className="h-12 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase tracking-widest">Description</Label>
+                    <Label className="text-xs font-bold uppercase">Description</Label>
                     <textarea 
-                      placeholder="Detailed requirements..." 
-                      className="w-full h-32 rounded-xl bg-secondary/20 p-4 border-2 border-transparent focus:border-primary/50 outline-none transition-all"
+                      placeholder="Requirements..." 
+                      className="w-full h-32 rounded-xl bg-secondary/20 p-4 border-2 border-transparent focus:border-primary/50 outline-none"
                       value={newDesc}
                       onChange={e => setNewDesc(e.target.value)}
                       required
@@ -165,7 +161,7 @@ export default function TasksPage() {
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-widest">Priority</Label>
+                      <Label className="text-xs font-bold uppercase">Priority</Label>
                       <Select value={newPriority} onValueChange={setNewPriority}>
                         <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -176,24 +172,24 @@ export default function TasksPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-widest">Due Date</Label>
+                      <Label className="text-xs font-bold uppercase">Due Date</Label>
                       <Input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} required className="h-12 rounded-xl" />
                     </div>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-widest">Developer</Label>
+                      <Label className="text-xs font-bold uppercase">Developer</Label>
                       <Select value={newDeveloper} onValueChange={setNewDeveloper}>
-                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Dev" /></SelectTrigger>
+                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Assign Dev" /></SelectTrigger>
                         <SelectContent>
                           {developers?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-widest">Client</Label>
+                      <Label className="text-xs font-bold uppercase">Client</Label>
                       <Select value={newClient} onValueChange={setNewClient}>
-                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Client" /></SelectTrigger>
+                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Assign Client" /></SelectTrigger>
                         <SelectContent>
                           {clients?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                         </SelectContent>
@@ -201,7 +197,7 @@ export default function TasksPage() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit" className="w-full h-14 rounded-2xl font-bold text-lg">Initialize Assignment</Button>
+                    <Button type="submit" className="w-full h-14 rounded-2xl font-bold">Assign Project</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -209,47 +205,45 @@ export default function TasksPage() {
           )}
         </div>
 
-        {/* Toolbar */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
-              placeholder="Search by title or description..." 
+              placeholder="Filter tasks..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
             />
           </div>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-full sm:w-48 h-14 rounded-2xl border-none bg-white shadow-sm font-medium">
+            <SelectTrigger className="w-full sm:w-48 h-14 rounded-2xl border-none bg-white shadow-sm">
               <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter Status" />
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="all">All</SelectItem>
               <SelectItem value={TASK_STATUS.PENDING}>Pending</SelectItem>
-              <SelectItem value={TASK_STATUS.IN_PROGRESS}>In Progress</SelectItem>
+              <SelectItem value={TASK_STATUS.IN_PROGRESS}>Active</SelectItem>
               <SelectItem value={TASK_STATUS.COMPLETED}>Completed</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {/* Task Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {filteredTasks?.map((task) => (
-            <Card key={task.id} className="border-none shadow-sm bg-white rounded-3xl overflow-hidden group hover:shadow-xl hover:shadow-primary/5 transition-all">
+            <Card key={task.id} className="border-none shadow-sm bg-white rounded-3xl overflow-hidden group hover:shadow-xl transition-all">
               <CardHeader className="p-8 pb-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Badge className={cn("rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-wider border", getPriorityColor(task.priority))}>
-                        {task.priority} Priority
+                      <Badge className={cn("rounded-full px-3 py-1 font-bold text-[9px] uppercase border", getPriorityColor(task.priority))}>
+                        {task.priority}
                       </Badge>
-                      <Badge variant="secondary" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-wider">
+                      <Badge variant="secondary" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase">
                         {task.status}
                       </Badge>
                     </div>
-                    <CardTitle className="text-2xl font-bold font-headline group-hover:text-primary transition-colors">{task.title}</CardTitle>
+                    <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors">{task.title}</CardTitle>
                   </div>
                   <Link href={`/dashboard/tasks/${task.id}`}>
                     <Button variant="ghost" size="icon" className="rounded-full">
@@ -259,42 +253,30 @@ export default function TasksPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-8 pt-0 space-y-6">
-                <p className="text-muted-foreground line-clamp-2 leading-relaxed">{task.description}</p>
-                
-                <div className="grid grid-cols-2 gap-4 py-4 border-y border-dashed">
-                  <div className="flex items-center gap-2 text-sm">
+                <p className="text-muted-foreground line-clamp-2">{task.description}</p>
+                <div className="flex items-center justify-between py-4 border-y border-dashed">
+                  <div className="flex items-center gap-2 text-sm font-medium">
                     <Calendar className="h-4 w-4 text-primary" />
-                    <span className="font-medium">{task.dueDate ? format(new Date(task.dueDate), 'MMM dd, yyyy') : 'No Date'}</span>
+                    {task.dueDate ? format(new Date(task.dueDate), 'MMM dd, yyyy') : 'No date'}
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-sm font-medium">
                     <UserIcon className="h-4 w-4 text-primary" />
-                    <span className="font-medium truncate">{developers?.find(d => d.id === task.assignedDeveloperId)?.name || 'Unassigned'}</span>
+                    {developers?.find(d => d.id === task.assignedDeveloperId)?.name || 'N/A'}
                   </div>
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex -space-x-2">
-                    <div className="h-8 w-8 rounded-full border-2 border-white bg-primary/10 flex items-center justify-center text-[10px] font-bold">D</div>
-                    <div className="h-8 w-8 rounded-full border-2 border-white bg-orange-50 flex items-center justify-center text-[10px] font-bold text-orange-600">C</div>
-                  </div>
-                  <Button asChild variant="ghost" className="rounded-xl font-bold text-xs gap-2 group">
-                    <Link href={`/dashboard/tasks/${task.id}`}>
-                      View Details & Suggestions <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                  </Button>
-                </div>
+                <Button asChild variant="ghost" className="w-full rounded-xl font-bold">
+                  <Link href={`/dashboard/tasks/${task.id}`}>
+                    Manage & Feedback <ArrowRight className="h-4 w-4 ml-2" />
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           ))}
-          {isTasksLoading && (
-            [1, 2, 3, 4].map(i => <div key={i} className="h-64 rounded-3xl bg-white animate-pulse" />)
-          )}
+          {isTasksLoading && [1, 2].map(i => <div key={i} className="h-64 rounded-3xl bg-white animate-pulse" />)}
           {(!filteredTasks || filteredTasks.length === 0) && !isTasksLoading && (
             <div className="lg:col-span-2 py-20 text-center space-y-4">
-              <div className="h-20 w-20 bg-secondary rounded-full flex items-center justify-center mx-auto">
-                <AlertTriangle className="h-10 w-10 text-muted-foreground" />
-              </div>
-              <p className="text-xl font-bold font-headline">No matching tasks</p>
+              <TriangleAlert className="h-10 w-10 text-muted-foreground mx-auto" />
+              <p className="font-bold">No tasks matched your criteria.</p>
             </div>
           )}
         </div>
