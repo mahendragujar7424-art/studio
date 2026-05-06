@@ -54,7 +54,7 @@ export default function LandingPage() {
           <div className="max-w-5xl mx-auto text-center space-y-12 relative z-10">
             <div className="inline-flex items-center gap-3">
               <Badge variant="secondary" className="px-6 py-2 text-primary font-bold tracking-widest border-primary/20 bg-primary/5 rounded-full animate-in fade-in slide-in-from-bottom duration-700">
-                <Sparkles className="h-4 w-4 mr-2" /> V2.5 ENTERPRISE
+                <Sparkles className="h-4 w-4 mr-2" /> V2. ENTERPRISE
               </Badge>
               <div className="flex -space-x-3 items-center">
                 {[1, 2, 3].map(i => (
