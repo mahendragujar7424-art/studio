@@ -8,8 +8,9 @@ import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@
 import { collection, doc, query, where, addDoc } from 'firebase/firestore';
 import { ROLES, TASK_STATUS, TASK_PRIORITY } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { 
   Plus, 
   Search, 
@@ -19,7 +20,8 @@ import {
   CircleCheck,
   Clock,
   TriangleAlert,
-  ArrowRight
+  ArrowRight,
+  TrendingUp
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -43,6 +45,7 @@ export default function TasksPage() {
 
   const [search, setSearch] = React.useState('');
   const [filterStatus, setFilterStatus] = React.useState<string>('all');
+  const [isTasksLoading, setIsTasksLoading] = React.useState(true);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
   const [newTitle, setNewTitle] = React.useState('');
@@ -59,8 +62,6 @@ export default function TasksPage() {
 
   const { data: profile } = useDoc(userRef);
 
-  // CRITICAL: Only fetch lists of users if the current user is an Admin.
-  // This prevents permission errors for Developers and Clients.
   const developersQuery = useMemoFirebase(() => {
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
@@ -83,7 +84,11 @@ export default function TasksPage() {
     return null;
   }, [firestore, profile, user?.uid]);
 
-  const { data: tasks, isLoading: isTasksLoading } = useCollection(tasksQuery);
+  const { data: tasks, isLoading } = useCollection(tasksQuery);
+
+  React.useEffect(() => {
+    if (!isLoading) setIsTasksLoading(false);
+  }, [isLoading]);
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +99,7 @@ export default function TasksPage() {
         title: newTitle,
         description: newDesc,
         status: TASK_STATUS.PENDING,
+        progress: 0,
         priority: newPriority,
         assignedDeveloperId: newDeveloper,
         assignedClientId: newClient,
@@ -236,7 +242,7 @@ export default function TasksPage() {
             <Card key={task.id} className="border-none shadow-sm bg-white rounded-3xl overflow-hidden group hover:shadow-xl transition-all">
               <CardHeader className="p-8 pb-4">
                 <div className="flex items-start justify-between">
-                  <div className="space-y-2">
+                  <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-2">
                       <Badge className={cn("rounded-full px-3 py-1 font-bold text-[9px] uppercase border", getPriorityColor(task.priority))}>
                         {task.priority}
@@ -256,6 +262,15 @@ export default function TasksPage() {
               </CardHeader>
               <CardContent className="p-8 pt-0 space-y-6">
                 <p className="text-muted-foreground line-clamp-2">{task.description}</p>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
+                    <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Progress</span>
+                    <span>{task.progress || 0}%</span>
+                  </div>
+                  <Progress value={task.progress || 0} className="h-2" />
+                </div>
+
                 <div className="flex items-center justify-between py-4 border-y border-dashed">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Calendar className="h-4 w-4 text-primary" />

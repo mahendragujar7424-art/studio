@@ -13,12 +13,14 @@ import {
   Clock, 
   CircleAlert,
   TrendingUp,
-  Activity
+  Activity,
+  ArrowUpRight
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -46,7 +48,14 @@ export default function DashboardPage() {
   const inProgressCount = myTasks?.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length || 0;
   const pendingCount = myTasks?.filter(t => t.status === TASK_STATUS.PENDING).length || 0;
   const totalCount = myTasks?.length || 0;
-  const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  
+  // Calculate average progress across all active tasks
+  const activeTasks = myTasks?.filter(t => t.status !== TASK_STATUS.COMPLETED) || [];
+  const avgProgress = activeTasks.length > 0 
+    ? Math.round(activeTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / activeTasks.length) 
+    : 0;
+
+  const overallCompletionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
     <DashboardLayout>
@@ -106,13 +115,13 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all duration-300">
-                  <Users className="h-6 w-6" />
+                  <TrendingUp className="h-6 w-6" />
                 </div>
-                <span className="text-[10px] font-bold text-purple-600/50 uppercase">Efficiency</span>
+                <span className="text-[10px] font-bold text-purple-600/50 uppercase">Velocity</span>
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Progress</p>
-                <p className="text-3xl font-bold font-headline">{completionRate}%</p>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Active Progress</p>
+                <p className="text-3xl font-bold font-headline">{avgProgress}%</p>
               </div>
             </CardContent>
           </Card>
@@ -123,31 +132,39 @@ export default function DashboardPage() {
             <CardHeader className="p-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl font-bold font-headline">Recent Tasks</CardTitle>
-                  <CardDescription>Track latest workspace activities.</CardDescription>
+                  <CardTitle className="text-xl font-bold font-headline">Recent Activity</CardTitle>
+                  <CardDescription>Track latest workspace milestones and completion rates.</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-8 pt-0">
               <div className="space-y-6">
                 {myTasks?.slice(0, 5).map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-4 rounded-2xl bg-secondary/30 border border-transparent hover:border-primary/20 transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className={cn(
-                        "h-10 w-10 rounded-xl flex items-center justify-center font-bold text-white",
-                        task.status === TASK_STATUS.COMPLETED ? "bg-green-500" : task.status === TASK_STATUS.IN_PROGRESS ? "bg-blue-500" : "bg-orange-500"
-                      )}>
-                        {task.title.charAt(0)}
+                  <Link href={`/dashboard/tasks/${task.id}`} key={task.id} className="block group">
+                    <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/30 border border-transparent hover:border-primary/20 transition-all">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={cn(
+                          "h-10 w-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm",
+                          task.status === TASK_STATUS.COMPLETED ? "bg-green-500" : task.status === TASK_STATUS.IN_PROGRESS ? "bg-blue-500" : "bg-orange-500"
+                        )}>
+                          {task.title.charAt(0)}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <p className="font-bold text-sm group-hover:text-primary transition-colors">{task.title}</p>
+                            <span className="text-[10px] font-bold text-muted-foreground">{task.progress || 0}%</span>
+                          </div>
+                          <Progress value={task.progress || 0} className="h-1.5" />
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-sm group-hover:text-primary transition-colors">{task.title}</p>
-                        <p className="text-xs text-muted-foreground">{task.dueDate ? format(new Date(task.dueDate), 'MMM dd, yyyy') : 'No due date'}</p>
+                      <div className="ml-4 flex items-center gap-2">
+                        <Badge variant="outline" className="rounded-full px-3 py-1 font-bold text-[10px] uppercase border-2 hidden sm:inline-flex">
+                          {task.status}
+                        </Badge>
+                        <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
-                    <Badge variant="outline" className="rounded-full px-3 py-1 font-bold text-[10px] uppercase border-2">
-                      {task.status}
-                    </Badge>
-                  </div>
+                  </Link>
                 ))}
                 {(!myTasks || myTasks.length === 0) && (
                   <div className="text-center py-10 text-muted-foreground italic">
@@ -160,20 +177,27 @@ export default function DashboardPage() {
 
           <Card className="border-none shadow-sm bg-white rounded-3xl">
             <CardHeader className="p-8">
-              <CardTitle className="text-xl font-bold font-headline">Distribution</CardTitle>
-              <CardDescription>Current workflow breakdown.</CardDescription>
+              <CardTitle className="text-xl font-bold font-headline">Project Health</CardTitle>
+              <CardDescription>Overall completion metrics.</CardDescription>
             </CardHeader>
             <CardContent className="p-8 pt-0 space-y-8">
               <div className="space-y-4">
                 <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                  <span>Completed</span>
-                  <span className="text-green-600">{completionRate}%</span>
+                  <span>Completed Tasks</span>
+                  <span className="text-green-600">{overallCompletionRate}%</span>
                 </div>
-                <Progress value={completionRate} className="h-2" />
+                <Progress value={overallCompletionRate} className="h-2" />
+              </div>
+              <div className="space-y-4">
+                <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                  <span>Current Momentum</span>
+                  <span className="text-blue-600">{avgProgress}%</span>
+                </div>
+                <Progress value={avgProgress} className="h-2" />
               </div>
               <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
                 <p className="text-sm font-bold text-primary">Workspace Note</p>
-                <p className="text-xs text-muted-foreground mt-1">Status changes are synchronized across Admin, Developer, and Client panels instantly.</p>
+                <p className="text-xs text-muted-foreground mt-1">Developers can update granular completion percentages. Clients see these updates reflected instantly in their portal.</p>
               </div>
             </CardContent>
           </Card>

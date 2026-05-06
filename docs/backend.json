@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -68,6 +69,12 @@
         "status": {
           "type": "string",
           "description": "The current status of the task. Possible values: 'Pending', 'In Progress', 'Completed'."
+        },
+        "progress": {
+          "type": "number",
+          "description": "The completion percentage of the task (0-100).",
+          "minimum": 0,
+          "maximum": 100
         },
         "priority": {
           "type": "string",

@@ -7,11 +7,13 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, orderBy, query } from 'firebase/firestore';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { Slider } from '@/components/ui/slider';
 import { ROLES, TASK_STATUS } from '@/lib/constants';
 import { format } from 'date-fns';
 import { 
@@ -22,7 +24,8 @@ import {
   CircleCheck, 
   CircleAlert,
   History,
-  Info
+  Info,
+  TrendingUp
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +38,7 @@ export default function TaskDetailPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [suggestion, setSuggestion] = React.useState('');
+  const [localProgress, setLocalProgress] = React.useState<number>(0);
 
   const taskRef = useMemoFirebase(() => {
     if (!firestore || !taskId || !user) return null;
@@ -59,6 +63,12 @@ export default function TaskDetailPage() {
   }, [firestore, user?.uid]);
 
   const { data: profile } = useDoc(userRef);
+
+  React.useEffect(() => {
+    if (task?.progress !== undefined) {
+      setLocalProgress(task.progress);
+    }
+  }, [task?.progress]);
 
   const handlePostSuggestion = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,8 +96,24 @@ export default function TaskDetailPage() {
     toast({ title: "Status Updated", description: `Task marked as ${newStatus}` });
   };
 
+  const handleProgressChange = (value: number[]) => {
+    const newVal = value[0];
+    setLocalProgress(newVal);
+  };
+
+  const saveProgress = () => {
+    if (!taskRef) return;
+    updateDocumentNonBlocking(taskRef, {
+      progress: localProgress,
+      updatedAt: new Date().toISOString()
+    });
+    toast({ title: "Progress Saved", description: `Task is now ${localProgress}% complete.` });
+  };
+
   if (isLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
   if (!task) return <DashboardLayout>Task not found.</DashboardLayout>;
+
+  const canEdit = profile?.role === ROLES.ADMIN || profile?.role === ROLES.DEVELOPER;
 
   return (
     <DashboardLayout>
@@ -112,7 +138,17 @@ export default function TaskDetailPage() {
                   <h1 className="text-3xl font-bold font-headline">{task.title}</h1>
                 </div>
               </div>
+              
+              <div className="mb-8 p-6 rounded-2xl bg-primary/5 border border-primary/10 space-y-4">
+                <div className="flex justify-between items-center text-sm font-bold uppercase tracking-wider text-primary">
+                  <span>Project Progress</span>
+                  <span>{task.progress || 0}%</span>
+                </div>
+                <Progress value={task.progress || 0} className="h-3" />
+              </div>
+
               <p className="text-lg text-muted-foreground leading-relaxed">{task.description}</p>
+              
               <div className="mt-8 pt-8 border-t flex flex-wrap gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2"><Clock className="h-4 w-4" /> Created {task.createdAt ? format(new Date(task.createdAt), 'MMM dd, yyyy') : 'N/A'}</div>
                 <div className="flex items-center gap-2"><Info className="h-4 w-4" /> Status: {task.status}</div>
@@ -131,14 +167,14 @@ export default function TaskDetailPage() {
               <TabsContent value="suggestions" className="pt-6 space-y-6">
                 <form onSubmit={handlePostSuggestion} className="space-y-4">
                   <Textarea 
-                    placeholder="Share feedback or updates..." 
+                    placeholder="Share feedback or request changes..." 
                     value={suggestion}
                     onChange={e => setSuggestion(e.target.value)}
                     className="min-h-[120px] rounded-2xl border-2"
                   />
                   <div className="flex justify-end">
                     <Button type="submit" className="rounded-xl font-bold gap-2">
-                      <Send className="h-4 w-4" /> Send Message
+                      <Send className="h-4 w-4" /> {profile?.role === ROLES.CLIENT ? 'Send Suggestion' : 'Post Update'}
                     </Button>
                   </div>
                 </form>
@@ -171,10 +207,35 @@ export default function TaskDetailPage() {
           </div>
 
           <div className="space-y-6">
+            {canEdit && (
+              <Card className="border-none shadow-sm bg-white rounded-3xl p-8">
+                <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" /> Progress Control
+                </h3>
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    <div className="flex justify-between text-sm font-bold">
+                      <span>Completion Percentage</span>
+                      <span className="text-primary">{localProgress}%</span>
+                    </div>
+                    <Slider 
+                      value={[localProgress]} 
+                      onValueChange={handleProgressChange}
+                      max={100} 
+                      step={5} 
+                    />
+                  </div>
+                  <Button onClick={saveProgress} className="w-full rounded-xl font-bold">
+                    Save Progress Status
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             <Card className="border-none shadow-sm bg-white rounded-3xl p-8">
-              <h3 className="text-lg font-bold mb-6">Workflow Controls</h3>
+              <h3 className="text-lg font-bold mb-6">Workflow Status</h3>
               <div className="space-y-4">
-                {profile?.role !== ROLES.CLIENT ? (
+                {canEdit ? (
                   <div className="grid grid-cols-1 gap-2">
                     <Button 
                       variant={task.status === 'Pending' ? "default" : "outline"}
@@ -199,8 +260,13 @@ export default function TaskDetailPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="p-4 rounded-2xl bg-secondary/10 text-sm font-bold text-center">
-                    Project Status: <span className="text-primary">{task.status}</span>
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-secondary/10 text-sm font-bold text-center">
+                      Current Status: <span className="text-primary uppercase">{task.status}</span>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 text-xs text-center text-muted-foreground">
+                      Use the "Activity & Suggestions" tab to request changes or provide feedback to your assigned developer.
+                    </div>
                   </div>
                 )}
               </div>
