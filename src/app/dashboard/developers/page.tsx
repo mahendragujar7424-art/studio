@@ -52,7 +52,8 @@ const DESIGNATIONS = [
   'Front-end',
   'Back-end',
   'Full-stack',
-  'Mobile',
+  'iOS',
+  'Android',
   'UI/UX'
 ];
 

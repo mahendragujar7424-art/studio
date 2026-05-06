@@ -27,7 +27,7 @@
         "designation": {
           "type": "string",
           "description": "The technical specialty of a developer.",
-          "enum": ["Front-end", "Back-end", "Full-stack", "Mobile", "UI/UX"]
+          "enum": ["Front-end", "Back-end", "Full-stack", "iOS", "Android", "UI/UX"]
         },
         "teamId": {
           "type": "string",
