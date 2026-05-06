@@ -2,9 +2,10 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, serverTimestamp, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, query, where, addDoc } from 'firebase/firestore';
 import { ROLES, TASK_STATUS, TASK_PRIORITY } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,10 +17,10 @@ import {
   MoreVertical, 
   Calendar, 
   User as UserIcon,
-  Tag,
   CheckCircle2,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -34,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function TasksPage() {
   const { user } = useUser();
@@ -111,19 +113,6 @@ export default function TasksPage() {
     }
   };
 
-  const handleUpdateStatus = async (taskId: string, newStatus: string) => {
-    if (!firestore) return;
-    try {
-      await updateDoc(doc(firestore, 'tasks', taskId), {
-        status: newStatus,
-        updatedAt: new Date().toISOString(),
-      });
-      toast({ title: "Status Updated", description: `Task is now ${newStatus}` });
-    } catch (error: any) {
-      toast({ title: "Failed", description: error.message, variant: "destructive" });
-    }
-  };
-
   const filteredTasks = tasks?.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) || 
                           t.description.toLowerCase().includes(search.toLowerCase());
@@ -147,7 +136,7 @@ export default function TasksPage() {
             <h1 className="text-4xl font-bold font-headline tracking-tight">Tasks Management</h1>
             <p className="text-muted-foreground mt-2 text-lg">Manage, assign and monitor project lifecycles.</p>
           </div>
-          {profile?.role !== ROLES.CLIENT && (
+          {profile?.role === ROLES.ADMIN && (
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
                 <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all">
@@ -191,28 +180,26 @@ export default function TasksPage() {
                       <Input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} required className="h-12 rounded-xl" />
                     </div>
                   </div>
-                  {profile?.role === ROLES.ADMIN && (
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs font-bold uppercase tracking-widest">Developer</Label>
-                        <Select value={newDeveloper} onValueChange={setNewDeveloper}>
-                          <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Dev" /></SelectTrigger>
-                          <SelectContent>
-                            {developers?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs font-bold uppercase tracking-widest">Client</Label>
-                        <Select value={newClient} onValueChange={setNewClient}>
-                          <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Client" /></SelectTrigger>
-                          <SelectContent>
-                            {clients?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest">Developer</Label>
+                      <Select value={newDeveloper} onValueChange={setNewDeveloper}>
+                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Dev" /></SelectTrigger>
+                        <SelectContent>
+                          {developers?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest">Client</Label>
+                      <Select value={newClient} onValueChange={setNewClient}>
+                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Client" /></SelectTrigger>
+                        <SelectContent>
+                          {clients?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                   <DialogFooter>
                     <Button type="submit" className="w-full h-14 rounded-2xl font-bold text-lg">Initialize Assignment</Button>
                   </DialogFooter>
@@ -264,9 +251,11 @@ export default function TasksPage() {
                     </div>
                     <CardTitle className="text-2xl font-bold font-headline group-hover:text-primary transition-colors">{task.title}</CardTitle>
                   </div>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
+                  <Link href={`/dashboard/tasks/${task.id}`}>
+                    <Button variant="ghost" size="icon" className="rounded-full">
+                      <ArrowRight className="h-5 w-5" />
+                    </Button>
+                  </Link>
                 </div>
               </CardHeader>
               <CardContent className="p-8 pt-0 space-y-6">
@@ -283,29 +272,16 @@ export default function TasksPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center justify-between">
                   <div className="flex -space-x-2">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="h-8 w-8 rounded-full border-2 border-white bg-primary/10 flex items-center justify-center text-[10px] font-bold">
-                        {i === 1 ? 'D' : 'C'}
-                      </div>
-                    ))}
+                    <div className="h-8 w-8 rounded-full border-2 border-white bg-primary/10 flex items-center justify-center text-[10px] font-bold">D</div>
+                    <div className="h-8 w-8 rounded-full border-2 border-white bg-orange-50 flex items-center justify-center text-[10px] font-bold text-orange-600">C</div>
                   </div>
-
-                  {profile?.role !== ROLES.CLIENT && (
-                    <div className="flex gap-2">
-                      {task.status !== TASK_STATUS.IN_PROGRESS && (
-                        <Button size="sm" variant="outline" className="rounded-full font-bold text-xs" onClick={() => handleUpdateStatus(task.id, TASK_STATUS.IN_PROGRESS)}>
-                          <Clock className="h-3.5 w-3.5 mr-2" /> Start
-                        </Button>
-                      )}
-                      {task.status !== TASK_STATUS.COMPLETED && (
-                        <Button size="sm" variant="outline" className="rounded-full font-bold text-xs hover:bg-green-50 hover:text-green-600 hover:border-green-200" onClick={() => handleUpdateStatus(task.id, TASK_STATUS.COMPLETED)}>
-                          <CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Complete
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  <Button asChild variant="ghost" className="rounded-xl font-bold text-xs gap-2 group">
+                    <Link href={`/dashboard/tasks/${task.id}`}>
+                      View Details & Suggestions <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -318,10 +294,7 @@ export default function TasksPage() {
               <div className="h-20 w-20 bg-secondary rounded-full flex items-center justify-center mx-auto">
                 <AlertTriangle className="h-10 w-10 text-muted-foreground" />
               </div>
-              <div>
-                <p className="text-xl font-bold font-headline">No matching tasks</p>
-                <p className="text-muted-foreground">Adjust your search or filter to find what you need.</p>
-              </div>
+              <p className="text-xl font-bold font-headline">No matching tasks</p>
             </div>
           )}
         </div>
