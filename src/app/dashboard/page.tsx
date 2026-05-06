@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ROLES, TASK_STATUS } from '@/lib/constants';
 import { 
   Users, 
-  CircleCheck, 
+  CheckCircle, 
   Clock, 
   CircleAlert,
   TrendingUp,
@@ -70,7 +70,7 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
-                  <CircleCheck className="h-6 w-6" />
+                  <CheckCircle className="h-6 w-6" />
                 </div>
                 <Badge variant="secondary" className="bg-green-50 text-green-700 border-none font-bold">READY</Badge>
               </div>

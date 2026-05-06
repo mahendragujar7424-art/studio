@@ -28,7 +28,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
+  DialogTrigger, 
   DialogFooter
 } from '@/components/ui/dialog';
 import {
@@ -118,11 +118,19 @@ export default function UsersPage() {
       setIsCreateOpen(false);
       resetForm();
     } catch (error: any) {
-      toast({ 
-        title: "Creation Failed", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      if (error.code === 'auth/email-already-in-use') {
+        toast({ 
+          title: "Account Already Exists", 
+          description: "This email is already in the Authentication database. If you previously deleted this user's profile, you may need to delete their record from the Firebase Console before reusing the email.", 
+          variant: "destructive" 
+        });
+      } else {
+        toast({ 
+          title: "Creation Failed", 
+          description: error.message, 
+          variant: "destructive" 
+        });
+      }
     } finally {
       if (secondaryApp) await deleteApp(secondaryApp);
       setIsSubmitting(false);
@@ -142,13 +150,13 @@ export default function UsersPage() {
     const userDocRef = doc(firestore, 'users', userToDelete.id);
     const adminRoleRef = doc(firestore, 'roles_admin', userToDelete.id);
 
-    // Trigger non-blocking deletion
+    // Trigger non-blocking deletion of Firestore records
     deleteDocumentNonBlocking(userDocRef);
     deleteDocumentNonBlocking(adminRoleRef);
 
     toast({ 
-      title: "Deletion Initiated", 
-      description: `User "${userToDelete.name}" is being removed from the system.` 
+      title: "Profile Removed", 
+      description: `User "${userToDelete.name}" was removed from the CRM. Note: Their Authentication account must be deleted manually in the Firebase Console to reuse this email.` 
     });
     
     setUserToDelete(null);
@@ -320,7 +328,7 @@ export default function UsersPage() {
             </div>
             <AlertDialogTitle className="text-2xl font-bold font-headline">Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription className="text-lg">
-              Are you absolutely sure you want to remove <span className="font-bold text-foreground">{userToDelete?.name}</span>? This action cannot be undone.
+              Are you absolutely sure you want to remove <span className="font-bold text-foreground">{userToDelete?.name}</span>? This action removes their profile from the CRM, but their Authentication account must be deleted from the Firebase Console to reuse the email.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 mt-4">
