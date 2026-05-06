@@ -17,7 +17,9 @@ import {
   Briefcase, 
   ShieldAlert,
   Loader2,
-  X
+  X,
+  ChevronDown,
+  Search
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -27,6 +29,11 @@ import {
   DialogTrigger, 
   DialogFooter
 } from '@/components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +50,7 @@ export default function TeamsPage() {
   const [newTeamName, setNewTeamName] = React.useState('');
   const [newTeamDesc, setNewTeamDesc] = React.useState('');
   const [selectedDeveloperIds, setSelectedDeveloperIds] = React.useState<string[]>([]);
+  const [devSearch, setDevSearch] = React.useState('');
 
   const currentUserRef = useMemoFirebase(() => {
     if (!firestore || !currentUser?.uid) return null;
@@ -74,6 +82,11 @@ export default function TeamsPage() {
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
+
+    if (selectedDeveloperIds.length === 0) {
+      toast({ title: "Assignment Required", description: "Please select at least one developer.", variant: "destructive" });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -113,6 +126,11 @@ export default function TeamsPage() {
     
     toast({ title: "Assignment Removed", description: "Developer unassigned from team." });
   };
+
+  const filteredDevelopers = developers?.filter(dev => 
+    dev.name?.toLowerCase().includes(devSearch.toLowerCase()) || 
+    dev.email?.toLowerCase().includes(devSearch.toLowerCase())
+  );
 
   if (profile && profile.role !== ROLES.ADMIN) {
     return (
@@ -156,29 +174,57 @@ export default function TeamsPage() {
                 
                 <div className="space-y-3">
                   <Label className="text-xs font-bold uppercase">Assign Developers</Label>
-                  <ScrollArea className="h-48 rounded-xl border-2 p-4 bg-secondary/5">
-                    <div className="space-y-3">
-                      {developers?.map((dev) => (
-                        <div 
-                          key={dev.id} 
-                          className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer" 
-                          onClick={() => toggleDeveloperSelection(dev.id)}
-                        >
-                          <Checkbox 
-                            checked={selectedDeveloperIds.includes(dev.id)} 
-                            onCheckedChange={() => {}} // Controlled by the parent div onClick
-                          />
-                          <div className="flex flex-col">
-                            <span className="text-sm font-bold">{dev.name}</span>
-                            <span className="text-[10px] text-muted-foreground">{dev.email}</span>
-                          </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full h-12 justify-between rounded-xl px-4 border-2 font-bold text-sm">
+                        {selectedDeveloperIds.length > 0 
+                          ? `${selectedDeveloperIds.length} Developers Selected` 
+                          : "Select Team Members"}
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[430px] p-0 rounded-2xl overflow-hidden shadow-2xl border-none" align="start">
+                      <div className="p-4 border-b bg-secondary/10 relative">
+                        <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="Search developers..." 
+                          value={devSearch}
+                          onChange={e => setDevSearch(e.target.value)}
+                          className="h-10 pl-10 rounded-lg border-none bg-white"
+                        />
+                      </div>
+                      <ScrollArea className="h-64 p-2 bg-white">
+                        <div className="space-y-1">
+                          {filteredDevelopers?.map((dev) => (
+                            <div 
+                              key={dev.id} 
+                              className="flex items-center space-x-3 p-3 rounded-xl hover:bg-primary/5 transition-colors cursor-pointer group" 
+                              onClick={() => toggleDeveloperSelection(dev.id)}
+                            >
+                              <Checkbox 
+                                checked={selectedDeveloperIds.includes(dev.id)} 
+                                onCheckedChange={() => {}} // Controlled by row click
+                                className="pointer-events-none"
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold group-hover:text-primary transition-colors">{dev.name}</span>
+                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{dev.email}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {(!filteredDevelopers || filteredDevelopers.length === 0) && (
+                            <p className="text-center py-10 text-xs text-muted-foreground italic">No matching developers found.</p>
+                          )}
                         </div>
-                      ))}
-                      {(!developers || developers.length === 0) && (
-                        <p className="text-center py-10 text-xs text-muted-foreground italic">No available developers found.</p>
+                      </ScrollArea>
+                      {selectedDeveloperIds.length > 0 && (
+                        <div className="p-3 bg-primary/5 border-t flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-primary uppercase">{selectedDeveloperIds.length} Selected</span>
+                          <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => setSelectedDeveloperIds([])}>Clear All</Button>
+                        </div>
                       )}
-                    </div>
-                  </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <DialogFooter className="pt-4">
