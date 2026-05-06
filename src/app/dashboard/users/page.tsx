@@ -124,9 +124,11 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = (userId: string, userName: string) => {
-    if (!confirm(`Are you sure you want to remove ${userName}? This will remove their CRM profile data.`)) return;
-    
-    if (!firestore) return;
+    if (!firestore || !userId) return;
+
+    // Use a non-blocking prompt or just proceed if the user is certain
+    const confirmed = window.confirm(`Are you sure you want to remove ${userName}?`);
+    if (!confirmed) return;
 
     const userDocRef = doc(firestore, 'users', userId);
     const adminRoleRef = doc(firestore, 'roles_admin', userId);
@@ -135,12 +137,15 @@ export default function UsersPage() {
     deleteDocumentNonBlocking(userDocRef);
     deleteDocumentNonBlocking(adminRoleRef);
 
-    toast({ title: "User Removed", description: "Profile access has been revoked." });
+    toast({ 
+      title: "Deletion Initiated", 
+      description: `Removing ${userName} from the workspace...` 
+    });
   };
 
   const filteredUsers = users?.filter(u => 
-    u.name.toLowerCase().includes(search.toLowerCase()) || 
-    u.email.toLowerCase().includes(search.toLowerCase())
+    u.name?.toLowerCase().includes(search.toLowerCase()) || 
+    u.email?.toLowerCase().includes(search.toLowerCase())
   );
 
   if (!profile && isUsersLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
