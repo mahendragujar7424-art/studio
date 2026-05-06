@@ -15,7 +15,7 @@ import {
   User as UserIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useUser, useFirestore, useDoc } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
 import { ROLES } from '@/lib/constants';
@@ -52,7 +52,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
   // Fetch user profile from Firestore to get role
-  const userRef = React.useMemo(() => {
+  const userRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user?.uid]);
@@ -71,7 +71,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
-  if (isUserLoading || isProfileLoading) {
+  // If auth is still loading, or if profile is loading while user is logged in
+  if (isUserLoading || (user && isProfileLoading)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="animate-pulse space-y-4 text-center">
@@ -80,6 +81,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  // Guard: If not logged in and auth check finished, return null while redirecting
+  if (!user) {
+    return null;
   }
 
   const role = profile?.role;

@@ -37,19 +37,19 @@ export default function TaskDetailPage() {
   const [suggestion, setSuggestion] = React.useState('');
 
   const taskRef = useMemoFirebase(() => {
-    if (!firestore || !taskId) return null;
+    if (!firestore || !taskId || !user) return null;
     return doc(firestore, 'tasks', taskId as string);
-  }, [firestore, taskId]);
+  }, [firestore, taskId, user]);
 
   const { data: task, isLoading } = useDoc(taskRef);
 
   const commentsQuery = useMemoFirebase(() => {
-    if (!firestore || !taskId) return null;
+    if (!firestore || !taskId || !user) return null;
     return query(
       collection(firestore, 'tasks', taskId as string, 'comments'),
       orderBy('timestamp', 'desc')
     );
-  }, [firestore, taskId]);
+  }, [firestore, taskId, user]);
 
   const { data: comments } = useCollection(commentsQuery);
 
@@ -114,7 +114,7 @@ export default function TaskDetailPage() {
               </div>
               <p className="text-lg text-muted-foreground leading-relaxed">{task.description}</p>
               <div className="mt-8 pt-8 border-t flex flex-wrap gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2"><Clock className="h-4 w-4" /> Created {format(new Date(task.createdAt), 'MMM dd, yyyy')}</div>
+                <div className="flex items-center gap-2"><Clock className="h-4 w-4" /> Created {task.createdAt ? format(new Date(task.createdAt), 'MMM dd, yyyy') : 'N/A'}</div>
                 <div className="flex items-center gap-2"><Info className="h-4 w-4" /> Status: {task.status}</div>
               </div>
             </Card>
@@ -154,7 +154,7 @@ export default function TaskDetailPage() {
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-bold uppercase text-muted-foreground">{comment.userName}</span>
-                          <span className="text-[10px] text-muted-foreground">{format(new Date(comment.timestamp), 'MMM dd, HH:mm')}</span>
+                          <span className="text-[10px] text-muted-foreground">{comment.timestamp ? format(new Date(comment.timestamp), 'MMM dd, HH:mm') : ''}</span>
                         </div>
                         <p className="text-sm">{comment.message}</p>
                       </div>
