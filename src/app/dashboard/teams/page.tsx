@@ -77,9 +77,14 @@ export default function TeamsPage() {
   const { data: developers, isLoading: isDevsLoading } = useCollection(devsQuery);
 
   const toggleDeveloperSelection = (id: string) => {
-    setSelectedDeveloperIds(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
+    setSelectedDeveloperIds(prev => {
+      const isSelected = prev.includes(id);
+      if (isSelected) {
+        return prev.filter(i => i !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
   };
 
   const handleCreateTeam = async (e: React.FormEvent) => {
@@ -100,7 +105,7 @@ export default function TeamsPage() {
         createdAt: new Date().toISOString(),
       });
 
-      // Update developers to link to this team
+      // Update developers to link to this team (Bi-directional update)
       for (const devId of selectedDeveloperIds) {
         const devRef = doc(firestore, 'users', devId);
         updateDocumentNonBlocking(devRef, { teamId: teamRef.id });
@@ -216,7 +221,10 @@ export default function TeamsPage() {
                                   "flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer group",
                                   isSelected ? "bg-primary/5" : "hover:bg-secondary/20"
                                 )} 
-                                onClick={() => toggleDeveloperSelection(dev.id)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  toggleDeveloperSelection(dev.id);
+                                }}
                               >
                                 <div className="flex items-center gap-3">
                                   <Checkbox 
