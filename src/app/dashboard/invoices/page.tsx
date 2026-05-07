@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -8,6 +7,7 @@ import { Receipt, Download, Clock, CheckCircle2, ShieldCheck } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 export default function InvoicesPage() {
   return (
