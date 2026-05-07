@@ -62,6 +62,21 @@ export default function DashboardPage() {
 
   const { data: profile } = useDoc(userRef);
 
+  // Fetch tasks assigned to the current user (or all for Admin)
+  const tasksQuery = useMemoFirebase(() => {
+    if (!firestore || !profile || !user?.uid) return null;
+    const tasksRef = collection(firestore, 'tasks');
+    
+    // Simplified queries to avoid missing index errors. 
+    // We will filter out ARCHIVED tasks client-side for metrics.
+    if (profile.role === ROLES.ADMIN) return tasksRef;
+    if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('assignedDeveloperId', '==', user.uid));
+    if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid));
+    return null;
+  }, [firestore, profile, user?.uid]);
+
+  const { data: rawTasks, isLoading: isTasksLoading } = useCollection(tasksQuery);
+
   // Teams are viewable by all members to see project assignments
   const teamsQuery = useMemoFirebase(() => {
     if (!firestore || !profile) return null;
@@ -69,27 +84,20 @@ export default function DashboardPage() {
   }, [firestore, profile]);
   const { data: teams } = useCollection(teamsQuery);
 
-  const tasksQuery = useMemoFirebase(() => {
-    if (!firestore || !profile || !user?.uid) return null;
-    const tasksRef = collection(firestore, 'tasks');
-    
-    if (profile.role === ROLES.ADMIN) return query(tasksRef, where('status', '!=', TASK_STATUS.ARCHIVED));
-    if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('assignedDeveloperId', '==', user.uid), where('status', '!=', TASK_STATUS.ARCHIVED));
-    if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid), where('status', '!=', TASK_STATUS.ARCHIVED));
-    return null;
-  }, [firestore, profile, user?.uid]);
-
-  const { data: myTasks, isLoading: isTasksLoading } = useCollection(tasksQuery);
-
   // --- Dynamic Metric Calculations ---
-  const totalCount = myTasks?.length || 0;
-  const completedCount = myTasks?.filter(t => t.status === TASK_STATUS.COMPLETED).length || 0;
-  const inProgressCount = myTasks?.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length || 0;
-  const reviewCount = myTasks?.filter(t => t.status === TASK_STATUS.UNDER_REVIEW).length || 0;
+  // Filter out archived tasks for the dashboard summary
+  const activeTasks = React.useMemo(() => {
+    return rawTasks?.filter(t => t.status !== TASK_STATUS.ARCHIVED) || [];
+  }, [rawTasks]);
+
+  const totalCount = activeTasks.length;
+  const completedCount = activeTasks.filter(t => t.status === TASK_STATUS.COMPLETED).length;
+  const inProgressCount = activeTasks.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length;
+  const reviewCount = activeTasks.filter(t => t.status === TASK_STATUS.UNDER_REVIEW).length;
   
   // Live Momentum: Average progress of all non-archived tasks in the current scope
   const avgProgress = totalCount > 0 
-    ? Math.round(myTasks!.reduce((acc, t) => acc + (t.progress || 0), 0) / totalCount) 
+    ? Math.round(activeTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / totalCount) 
     : 0;
 
   const overallCompletionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -195,7 +203,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="p-8 pt-0">
               <div className="space-y-6">
-                {myTasks?.slice(0, 5).map((task) => {
+                {activeTasks.slice(0, 5).map((task) => {
                   const team = teams?.find(t => t.id === task.assignedTeamId);
                   
                   return (
@@ -238,7 +246,7 @@ export default function DashboardPage() {
                     </Link>
                   );
                 })}
-                {(!myTasks || myTasks.length === 0) && !isTasksLoading && (
+                {activeTasks.length === 0 && !isTasksLoading && (
                   <div className="text-center py-10 text-muted-foreground italic bg-secondary/10 rounded-2xl border-2 border-dashed">
                     No active projects at this time.
                   </div>
