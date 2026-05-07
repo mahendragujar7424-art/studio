@@ -74,6 +74,7 @@ export default function UsersPage() {
   const { data: profile } = useDoc(currentUserRef);
 
   const usersQuery = useMemoFirebase(() => {
+    // Explicitly check for ROLES.ADMIN to prevent query firing during loading or for unauthorized users
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return collection(firestore, 'users');
   }, [firestore, profile?.role]);
@@ -164,7 +165,10 @@ export default function UsersPage() {
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (profile?.role !== ROLES.ADMIN && !isUsersLoading) {
+  // Still perform profile-based rendering guard
+  const isProfileAdmin = profile?.role === ROLES.ADMIN;
+
+  if (!isProfileAdmin && !isUsersLoading && profile) {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">

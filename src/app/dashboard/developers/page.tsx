@@ -24,7 +24,9 @@ import {
   Code2,
   Users,
   Edit,
-  UserCheck
+  UserCheck,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -50,6 +52,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 const DESIGNATIONS = [
   'Front-end',
@@ -85,6 +88,7 @@ export default function DevelopersPage() {
   const { data: profile } = useDoc(currentUserRef);
 
   const developersQuery = useMemoFirebase(() => {
+    // Explicitly gate query to prevent permission errors during load
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
   }, [firestore, profile?.role]);
@@ -206,7 +210,9 @@ export default function DevelopersPage() {
     u.designation?.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (profile?.role !== ROLES.ADMIN && !isDevsLoading) {
+  const isProfileAdmin = profile?.role === ROLES.ADMIN;
+
+  if (!isProfileAdmin && !isDevsLoading && profile) {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
@@ -454,8 +460,4 @@ export default function DevelopersPage() {
       </AlertDialog>
     </DashboardLayout>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
 }

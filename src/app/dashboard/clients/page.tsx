@@ -75,6 +75,7 @@ export default function ClientsPage() {
   const { data: profile } = useDoc(currentUserRef);
 
   const clientsQuery = useMemoFirebase(() => {
+    // Explicitly check role to prevent query before Admin identity is confirmed
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.CLIENT));
   }, [firestore, profile?.role]);
@@ -152,7 +153,9 @@ export default function ClientsPage() {
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (profile?.role !== ROLES.ADMIN && !isClientsLoading) {
+  const isProfileAdmin = profile?.role === ROLES.ADMIN;
+
+  if (!isProfileAdmin && !isClientsLoading && profile) {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">

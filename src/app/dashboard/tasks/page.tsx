@@ -68,11 +68,13 @@ function TasksContent() {
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
   const developersQuery = useMemoFirebase(() => {
+    // Only fetch developer list if user is an Admin
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
   }, [firestore, profile?.role]);
 
   const clientsQuery = useMemoFirebase(() => {
+    // Only fetch client list if user is an Admin
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.CLIENT));
   }, [firestore, profile?.role]);
@@ -90,6 +92,7 @@ function TasksContent() {
     if (!firestore || !profile || !user?.uid) return null;
     const tasksRef = collection(firestore, 'tasks');
     
+    // Admins see everything, clients/devs are filtered by rules but we query for all non-archived for UX
     if (profile.role === ROLES.ADMIN) return tasksRef;
     return query(tasksRef, where('status', '!=', 'ARCHIVED'));
   }, [firestore, profile, user?.uid]);
