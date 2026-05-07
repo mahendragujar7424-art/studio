@@ -3,7 +3,6 @@
 
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, orderBy, query } from 'firebase/firestore';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -158,319 +157,311 @@ export default function TaskDetailPage() {
 
   if (taskError && (taskError as any).code === 'permission-denied') {
     return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center h-[60vh] space-y-6 text-center">
-          <div className="h-20 w-20 bg-destructive/10 rounded-[2.5rem] flex items-center justify-center text-destructive">
-            <Lock className="h-10 w-10" />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold font-headline">Access Denied</h1>
-            <p className="text-muted-foreground max-w-sm">You are not authorized to view this project record. It may belong to another team or client.</p>
-          </div>
-          <Button onClick={() => router.push('/dashboard/tasks')} variant="outline" className="rounded-xl px-8 h-12 font-bold border-2 w-full sm:w-auto">
-            Return to Workspace
-          </Button>
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-6 text-center">
+        <div className="h-20 w-20 bg-destructive/10 rounded-[2.5rem] flex items-center justify-center text-destructive">
+          <Lock className="h-10 w-10" />
         </div>
-      </DashboardLayout>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold font-headline">Access Denied</h1>
+          <p className="text-muted-foreground max-w-sm">You are not authorized to view this project record. It may belong to another team or client.</p>
+        </div>
+        <Button onClick={() => router.push('/dashboard/tasks')} variant="outline" className="rounded-xl px-8 h-12 font-bold border-2 w-full sm:w-auto">
+          Return to Workspace
+        </Button>
+      </div>
     );
   }
 
-  if (isTaskLoading || isProfileLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
-  if (!task) return <DashboardLayout>Task not found.</DashboardLayout>;
+  if (isTaskLoading || isProfileLoading) return <div className="animate-pulse h-96 bg-white rounded-3xl" />;
+  if (!task) return <div>Task not found.</div>;
 
   const isAssignedDeveloper = profile?.role === ROLES.DEVELOPER && (task.assignedDeveloperId === user?.uid || task.assignedTeamId === profile.teamId);
   const isClient = profile?.role === ROLES.CLIENT && task.assignedClientId === user?.uid;
   const isAdmin = profile?.role === ROLES.ADMIN;
   
-  // LOCK DOWN: Only assigned developers can update progress, and ONLY if not yet approved
   const canUpdateProgress = isAssignedDeveloper && !task.isApproved;
 
   return (
-    <DashboardLayout>
-      <div className="max-w-6xl mx-auto space-y-8">
-        <Button variant="ghost" onClick={() => router.back()} className="rounded-full gap-2 hover:bg-white">
-          <ArrowLeft className="h-4 w-4" /> Back to Workspace
-        </Button>
+    <div className="max-w-6xl mx-auto space-y-8">
+      <Button variant="ghost" onClick={() => router.back()} className="rounded-full gap-2 hover:bg-white">
+        <ArrowLeft className="h-4 w-4" /> Back to Workspace
+      </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-6 md:p-10">
-              <div className="flex flex-col sm:flex-row justify-between items-start mb-8 gap-4">
-                <div className="space-y-4">
-                  <div className="flex gap-2">
-                    <Badge variant="outline" className="border-2 font-bold uppercase text-[9px] px-3 py-1">
-                      {task.priority} Priority
-                    </Badge>
-                    <Badge className={cn(
-                      "border-none font-bold uppercase text-[9px] px-3 py-1",
-                      task.isApproved ? "bg-green-600 text-white" :
-                      task.status === TASK_STATUS.COMPLETED ? "bg-green-100 text-green-700" : 
-                      task.status === TASK_STATUS.UNDER_REVIEW ? "bg-orange-100 text-orange-700" :
-                      task.status === TASK_STATUS.ARCHIVED ? "bg-slate-100 text-slate-700" :
-                      "bg-primary/10 text-primary"
-                    )}>
-                      {task.isApproved ? "Signed Off" : task.status}
-                    </Badge>
-                  </div>
-                  <h1 className="text-3xl md:text-4xl font-bold font-headline leading-tight tracking-tight">{task.title}</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-6 md:p-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start mb-8 gap-4">
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Badge variant="outline" className="border-2 font-bold uppercase text-[9px] px-3 py-1">
+                    {task.priority} Priority
+                  </Badge>
+                  <Badge className={cn(
+                    "border-none font-bold uppercase text-[9px] px-3 py-1",
+                    task.isApproved ? "bg-green-600 text-white" :
+                    task.status === TASK_STATUS.COMPLETED ? "bg-green-100 text-green-700" : 
+                    task.status === TASK_STATUS.UNDER_REVIEW ? "bg-orange-100 text-orange-700" :
+                    task.status === TASK_STATUS.ARCHIVED ? "bg-slate-100 text-slate-700" :
+                    "bg-primary/10 text-primary"
+                  )}>
+                    {task.isApproved ? "Signed Off" : task.status}
+                  </Badge>
                 </div>
-                {isAdmin && task.status !== TASK_STATUS.ARCHIVED && (
-                   <Button variant="outline" onClick={handleArchive} className="rounded-xl border-2 font-bold gap-2 w-full sm:w-auto">
-                     <Archive className="h-4 w-4" /> Archive Task
-                   </Button>
-                )}
+                <h1 className="text-3xl md:text-4xl font-bold font-headline leading-tight tracking-tight">{task.title}</h1>
               </div>
-              
-              <div className="mb-10 p-6 md:p-8 rounded-[2rem] bg-primary/5 border border-primary/10 space-y-4">
-                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-primary">
-                  <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Live Execution Health</span>
-                  <span>{task.progress || 0}% Completion</span>
-                </div>
-                <Progress value={task.progress || 0} className="h-4 rounded-full" />
-              </div>
-
-              {/* Formal Approval Section */}
-              {isClient && task.status === TASK_STATUS.COMPLETED && !task.isApproved && (
-                <div className="p-6 md:p-8 rounded-[2rem] bg-green-50 border-2 border-green-200 mb-10 flex flex-col items-center text-center gap-4 animate-in fade-in zoom-in duration-500">
-                  <ShieldCheck className="h-12 w-12 text-green-600" />
-                  <div>
-                    <h3 className="text-xl font-bold text-green-900">Formal Sign-off Required</h3>
-                    <p className="text-green-700 mt-1 max-w-md">The developer has marked this project as complete. Please provide your final approval to lock the records and finalize delivery.</p>
-                  </div>
-                  <Button onClick={handleSignOff} className="bg-green-600 hover:bg-green-700 h-14 rounded-2xl px-12 font-bold shadow-xl shadow-green-200 transition-all hover:scale-105 w-full sm:w-auto">
-                    Approve & Sign-off Project
-                  </Button>
-                </div>
+              {isAdmin && task.status !== TASK_STATUS.ARCHIVED && (
+                 <Button variant="outline" onClick={handleArchive} className="rounded-xl border-2 font-bold gap-2 w-full sm:w-auto">
+                   <Archive className="h-4 w-4" /> Archive Task
+                 </Button>
               )}
+            </div>
+            
+            <div className="mb-10 p-6 md:p-8 rounded-[2rem] bg-primary/5 border border-primary/10 space-y-4">
+              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-primary">
+                <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Live Execution Health</span>
+                <span>{task.progress || 0}% Completion</span>
+              </div>
+              <Progress value={task.progress || 0} className="h-4 rounded-full" />
+            </div>
 
-              {task.isApproved && (
-                <div className="p-4 rounded-xl bg-green-500/10 text-green-700 border border-green-200 mb-10 flex items-center gap-3">
-                  <ShieldCheck className="h-5 w-5" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Project officially signed off. Controls are now locked.</span>
+            {isClient && task.status === TASK_STATUS.COMPLETED && !task.isApproved && (
+              <div className="p-6 md:p-8 rounded-[2rem] bg-green-50 border-2 border-green-200 mb-10 flex flex-col items-center text-center gap-4 animate-in fade-in zoom-in duration-500">
+                <ShieldCheck className="h-12 w-12 text-green-600" />
+                <div>
+                  <h3 className="text-xl font-bold text-green-900">Formal Sign-off Required</h3>
+                  <p className="text-green-700 mt-1 max-w-md">The developer has marked this project as complete. Please provide your final approval to lock the records and finalize delivery.</p>
                 </div>
+                <Button onClick={handleSignOff} className="bg-green-600 hover:bg-green-700 h-14 rounded-2xl px-12 font-bold shadow-xl shadow-green-200 transition-all hover:scale-105 w-full sm:w-auto">
+                  Approve & Sign-off Project
+                </Button>
+              </div>
+            )}
+
+            {task.isApproved && (
+              <div className="p-4 rounded-xl bg-green-500/10 text-green-700 border border-green-200 mb-10 flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5" />
+                <span className="text-xs font-bold uppercase tracking-widest">Project officially signed off. Controls are now locked.</span>
+              </div>
+            )}
+
+            <div className="space-y-6">
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Detailed Brief</h3>
+              <p className="text-lg text-muted-foreground leading-relaxed">{task.description}</p>
+            </div>
+            
+            <div className="mt-12 pt-8 border-t grid grid-cols-1 sm:grid-cols-4 gap-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <div className="space-y-1 text-center sm:text-left">
+                <p className="text-primary/50 flex items-center justify-center sm:justify-start gap-2"><Clock className="h-3 w-3" /> Initialized</p>
+                <p className="text-foreground">{task.createdAt ? format(new Date(task.createdAt), 'MMM dd, yyyy') : 'N/A'}</p>
+              </div>
+              <div className="space-y-1 text-center sm:text-left">
+                <p className="text-primary/50 flex items-center justify-center sm:justify-start gap-2"><UserIcon className="h-3 w-3" /> Lead Developer</p>
+                <p className="text-foreground truncate">{developer?.name || 'Assigned'}</p>
+              </div>
+              <div className="space-y-1 text-center sm:text-left">
+                <p className="text-primary/50 flex items-center justify-center sm:justify-start gap-2"><Sparkles className="h-3 w-3" /> Specialty</p>
+                <p className="text-foreground">{developer?.designation || 'Specialist'}</p>
+              </div>
+              <div className="space-y-1 text-center sm:text-right">
+                <p className="text-primary/50 flex items-center justify-center sm:justify-end gap-2"><CircleAlert className="h-3 w-3" /> Priority</p>
+                <Badge variant="outline" className="text-[8px] font-bold h-5 px-2">{task.priority}</Badge>
+              </div>
+            </div>
+          </Card>
+
+          <Tabs defaultValue="suggestions" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 h-16 bg-secondary/20 rounded-[1.5rem] p-1.5">
+              <TabsTrigger value="suggestions" className="rounded-2xl font-bold gap-2 text-xs sm:text-sm">
+                <MessageSquare className="h-4 w-4" /> 
+                Collaboration Hub
+              </TabsTrigger>
+              <TabsTrigger value="history" className="rounded-2xl font-bold gap-2 text-xs sm:text-sm">
+                <History className="h-4 w-4" /> Audit Log
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="suggestions" className="pt-8 space-y-8">
+              {task.status !== TASK_STATUS.ARCHIVED && !task.isApproved && (
+                <Card className="border-none shadow-sm bg-white rounded-[2rem] p-6 md:p-8">
+                  <form onSubmit={handlePostMessage} className="space-y-4">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest ml-1 text-muted-foreground flex items-center gap-2">
+                      {profile?.role === ROLES.CLIENT ? <Sparkles className="h-3 w-3 text-primary" /> : <MessageSquare className="h-3 w-3 text-primary" />}
+                      {profile?.role === ROLES.CLIENT ? 'Send Suggestion to Developer' : 'Respond to Stakeholder'}
+                    </Label>
+                    <Textarea 
+                      placeholder={profile?.role === ROLES.CLIENT ? "Clarify a requirement or request a tweak..." : "Provide an update or answer client feedback..."} 
+                      value={message}
+                      onChange={e => setMessage(e.target.value)}
+                      className="min-h-[140px] rounded-2xl border-2 focus:border-primary/50 transition-all text-base bg-secondary/10"
+                    />
+                    <div className="flex justify-end">
+                      <Button type="submit" className="w-full sm:w-auto h-12 rounded-xl px-8 font-bold gap-3 shadow-lg shadow-primary/20 transition-all hover:scale-105">
+                        <Send className="h-4 w-4" /> Send Update
+                      </Button>
+                    </div>
+                  </form>
+                </Card>
               )}
 
               <div className="space-y-6">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Detailed Brief</h3>
-                <p className="text-lg text-muted-foreground leading-relaxed">{task.description}</p>
+                {comments?.map((c) => (
+                  <div key={c.id} className={cn(
+                    "flex flex-col sm:flex-row gap-5 p-6 md:p-8 rounded-[2.5rem] border-2 transition-all relative overflow-hidden",
+                    c.role === ROLES.CLIENT ? "bg-white border-primary/20 shadow-xl shadow-primary/5" : "bg-secondary/10 border-transparent"
+                  )}>
+                    {c.role === ROLES.CLIENT && (
+                      <div className="absolute top-0 right-0 px-4 py-1.5 bg-primary text-white text-[8px] font-bold uppercase tracking-widest rounded-bl-xl flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3" /> Client Suggestion
+                      </div>
+                    )}
+                    <Avatar className="h-14 w-14 shrink-0 border-4 border-white shadow-sm self-center sm:self-start">
+                      <AvatarFallback className={cn(
+                        "font-bold text-white text-lg",
+                        c.role === ROLES.CLIENT ? "bg-primary" : "bg-blue-600"
+                      )}>
+                        {c.userName?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-base tracking-tight">{c.userName}</span>
+                          <Badge variant="outline" className="text-[8px] uppercase font-bold tracking-widest px-2 py-0 border-muted-foreground/30 h-5">
+                            {c.role}
+                          </Badge>
+                        </div>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">
+                          {c.timestamp ? format(new Date(c.timestamp), 'MMM dd, HH:mm') : ''}
+                        </span>
+                      </div>
+                      <p className={cn(
+                        "text-muted-foreground leading-relaxed text-base",
+                        c.role === ROLES.CLIENT ? "font-medium text-foreground/90" : ""
+                      )}>{c.message}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              
-              <div className="mt-12 pt-8 border-t grid grid-cols-1 sm:grid-cols-4 gap-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                <div className="space-y-1 text-center sm:text-left">
-                  <p className="text-primary/50 flex items-center justify-center sm:justify-start gap-2"><Clock className="h-3 w-3" /> Initialized</p>
-                  <p className="text-foreground">{task.createdAt ? format(new Date(task.createdAt), 'MMM dd, yyyy') : 'N/A'}</p>
+            </TabsContent>
+            <TabsContent value="history">
+              <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-16 text-center text-muted-foreground italic flex flex-col items-center gap-4">
+                <div className="h-16 w-16 bg-secondary/50 rounded-3xl flex items-center justify-center text-secondary-foreground">
+                  <History className="h-8 w-8" />
                 </div>
-                <div className="space-y-1 text-center sm:text-left">
-                  <p className="text-primary/50 flex items-center justify-center sm:justify-start gap-2"><UserIcon className="h-3 w-3" /> Lead Developer</p>
-                  <p className="text-foreground truncate">{developer?.name || 'Assigned'}</p>
+                <p className="text-sm font-bold uppercase tracking-widest opacity-50">Complete project audit log is being synchronized...</p>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <div className="space-y-8">
+          {canUpdateProgress ? (
+            <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-8">
+              <h3 className="text-base font-bold mb-8 flex items-center gap-3 text-primary uppercase tracking-widest">
+                <TrendingUp className="h-5 w-5" /> Milestone Control
+              </h3>
+              <div className="space-y-10">
+                <div className="space-y-5">
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.2em]">
+                    <span className="text-muted-foreground">Execution Progress</span>
+                    <span className="text-primary">{localProgress}% Complete</span>
+                  </div>
+                  <Slider 
+                    value={[localProgress]} 
+                    onValueChange={handleProgressChange}
+                    max={100} 
+                    step={1}
+                    className="py-4"
+                  />
                 </div>
-                <div className="space-y-1 text-center sm:text-left">
-                  <p className="text-primary/50 flex items-center justify-center sm:justify-start gap-2"><Sparkles className="h-3 w-3" /> Specialty</p>
-                  <p className="text-foreground">{developer?.designation || 'Specialist'}</p>
-                </div>
-                <div className="space-y-1 text-center sm:text-right">
-                  <p className="text-primary/50 flex items-center justify-center sm:justify-end gap-2"><CircleAlert className="h-3 w-3" /> Priority</p>
-                  <Badge variant="outline" className="text-[8px] font-bold h-5 px-2">{task.priority}</Badge>
-                </div>
+                <Button 
+                  onClick={saveProgress} 
+                  className="w-full h-16 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all bg-primary"
+                >
+                  Save Progress
+                </Button>
               </div>
             </Card>
-
-            <Tabs defaultValue="suggestions" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 h-16 bg-secondary/20 rounded-[1.5rem] p-1.5">
-                <TabsTrigger value="suggestions" className="rounded-2xl font-bold gap-2 text-xs sm:text-sm">
-                  <MessageSquare className="h-4 w-4" /> 
-                  Collaboration Hub
-                </TabsTrigger>
-                <TabsTrigger value="history" className="rounded-2xl font-bold gap-2 text-xs sm:text-sm">
-                  <History className="h-4 w-4" /> Audit Log
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="suggestions" className="pt-8 space-y-8">
-                {task.status !== TASK_STATUS.ARCHIVED && !task.isApproved && (
-                  <Card className="border-none shadow-sm bg-white rounded-[2rem] p-6 md:p-8">
-                    <form onSubmit={handlePostMessage} className="space-y-4">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest ml-1 text-muted-foreground flex items-center gap-2">
-                        {profile?.role === ROLES.CLIENT ? <Sparkles className="h-3 w-3 text-primary" /> : <MessageSquare className="h-3 w-3 text-primary" />}
-                        {profile?.role === ROLES.CLIENT ? 'Send Suggestion to Developer' : 'Respond to Stakeholder'}
-                      </Label>
-                      <Textarea 
-                        placeholder={profile?.role === ROLES.CLIENT ? "Clarify a requirement or request a tweak..." : "Provide an update or answer client feedback..."} 
-                        value={message}
-                        onChange={e => setMessage(e.target.value)}
-                        className="min-h-[140px] rounded-2xl border-2 focus:border-primary/50 transition-all text-base bg-secondary/10"
-                      />
-                      <div className="flex justify-end">
-                        <Button type="submit" className="w-full sm:w-auto h-12 rounded-xl px-8 font-bold gap-3 shadow-lg shadow-primary/20 transition-all hover:scale-105">
-                          <Send className="h-4 w-4" /> Send Update
-                        </Button>
-                      </div>
-                    </form>
-                  </Card>
-                )}
-
-                <div className="space-y-6">
-                  {comments?.map((c) => (
-                    <div key={c.id} className={cn(
-                      "flex flex-col sm:flex-row gap-5 p-6 md:p-8 rounded-[2.5rem] border-2 transition-all relative overflow-hidden",
-                      c.role === ROLES.CLIENT ? "bg-white border-primary/20 shadow-xl shadow-primary/5" : "bg-secondary/10 border-transparent"
-                    )}>
-                      {c.role === ROLES.CLIENT && (
-                        <div className="absolute top-0 right-0 px-4 py-1.5 bg-primary text-white text-[8px] font-bold uppercase tracking-widest rounded-bl-xl flex items-center gap-1.5">
-                          <Sparkles className="h-3 w-3" /> Client Suggestion
-                        </div>
-                      )}
-                      <Avatar className="h-14 w-14 shrink-0 border-4 border-white shadow-sm self-center sm:self-start">
-                        <AvatarFallback className={cn(
-                          "font-bold text-white text-lg",
-                          c.role === ROLES.CLIENT ? "bg-primary" : "bg-blue-600"
-                        )}>
-                          {c.userName?.charAt(0) || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-base tracking-tight">{c.userName}</span>
-                            <Badge variant="outline" className="text-[8px] uppercase font-bold tracking-widest px-2 py-0 border-muted-foreground/30 h-5">
-                              {c.role}
-                            </Badge>
-                          </div>
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">
-                            {c.timestamp ? format(new Date(c.timestamp), 'MMM dd, HH:mm') : ''}
-                          </span>
-                        </div>
-                        <p className={cn(
-                          "text-muted-foreground leading-relaxed text-base",
-                          c.role === ROLES.CLIENT ? "font-medium text-foreground/90" : ""
-                        )}>{c.message}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-              <TabsContent value="history">
-                <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-16 text-center text-muted-foreground italic flex flex-col items-center gap-4">
-                  <div className="h-16 w-16 bg-secondary/50 rounded-3xl flex items-center justify-center text-secondary-foreground">
-                    <History className="h-8 w-8" />
-                  </div>
-                  <p className="text-sm font-bold uppercase tracking-widest opacity-50">Complete project audit log is being synchronized...</p>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          <div className="space-y-8">
-            {/* LOCK CONTROLS IF SIGNED OFF */}
-            {canUpdateProgress ? (
-              <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-8">
-                <h3 className="text-base font-bold mb-8 flex items-center gap-3 text-primary uppercase tracking-widest">
-                  <TrendingUp className="h-5 w-5" /> Milestone Control
-                </h3>
-                <div className="space-y-10">
-                  <div className="space-y-5">
-                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.2em]">
-                      <span className="text-muted-foreground">Execution Progress</span>
-                      <span className="text-primary">{localProgress}% Complete</span>
-                    </div>
-                    <Slider 
-                      value={[localProgress]} 
-                      onValueChange={handleProgressChange}
-                      max={100} 
-                      step={1}
-                      className="py-4"
-                    />
-                  </div>
-                  <Button 
-                    onClick={saveProgress} 
-                    className="w-full h-16 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all bg-primary"
-                  >
-                    Save Progress
-                  </Button>
-                </div>
-              </Card>
-            ) : (
-               <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-8">
-                 <h3 className="text-base font-bold mb-8 flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
-                   <Clock className="h-5 w-5" /> Project Pulse
-                 </h3>
-                 <div className="space-y-4">
-                   <div className={cn(
-                     "p-5 rounded-2xl border transition-colors",
-                     task.isApproved ? "bg-green-500/5 border-green-500/20" : "bg-secondary/10 border-secondary"
-                   )}>
-                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1 tracking-widest">Final Status</p>
-                     <p className={cn("font-bold text-lg", task.isApproved ? "text-green-600" : "text-primary")}>
-                       {task.isApproved ? "Signed Off" : task.status}
-                     </p>
-                   </div>
-                   <div className="p-5 rounded-2xl bg-secondary/10 border-secondary border">
-                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1 tracking-widest">Project Completion</p>
-                     <p className="font-bold text-primary text-lg">{task.progress}%</p>
-                   </div>
-                   <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10">
-                     <p className="text-xs text-muted-foreground italic leading-relaxed">
-                       {task.isApproved 
-                         ? "This project has been formally signed off. No further modifications allowed."
-                         : task.status === TASK_STATUS.ARCHIVED 
-                         ? "This project is now locked in archives." 
-                         : "Progress reflect instantly as technical milestones are achieved by your lead developer."}
-                     </p>
-                   </div>
+          ) : (
+             <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-8">
+               <h3 className="text-base font-bold mb-8 flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
+                 <Clock className="h-5 w-5" /> Project Pulse
+               </h3>
+               <div className="space-y-4">
+                 <div className={cn(
+                   "p-5 rounded-2xl border transition-colors",
+                   task.isApproved ? "bg-green-500/5 border-green-500/20" : "bg-secondary/10 border-secondary"
+                 )}>
+                   <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1 tracking-widest">Final Status</p>
+                   <p className={cn("font-bold text-lg", task.isApproved ? "text-green-600" : "text-primary")}>
+                     {task.isApproved ? "Signed Off" : task.status}
+                   </p>
                  </div>
-               </Card>
-            )}
+                 <div className="p-5 rounded-2xl bg-secondary/10 border-secondary border">
+                   <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1 tracking-widest">Project Completion</p>
+                   <p className="font-bold text-primary text-lg">{task.progress}%</p>
+                 </div>
+                 <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10">
+                   <p className="text-xs text-muted-foreground italic leading-relaxed">
+                     {task.isApproved 
+                       ? "This project has been formally signed off. No further modifications allowed."
+                       : task.status === TASK_STATUS.ARCHIVED 
+                       ? "This project is now locked in archives." 
+                       : "Progress reflect instantly as technical milestones are achieved by your lead developer."}
+                   </p>
+                 </div>
+               </div>
+             </Card>
+          )}
 
-            {/* LOCK TRANSITIONS IF SIGNED OFF */}
-            {isAssignedDeveloper && !task.isApproved && task.status !== TASK_STATUS.ARCHIVED && (
-              <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-8">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] mb-8 text-muted-foreground">Status Transitions</h3>
-                <div className="space-y-3">
-                  <Button 
-                    variant={task.status === TASK_STATUS.PENDING ? "default" : "outline"}
-                    className={cn(
-                      "w-full rounded-2xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                      task.status === TASK_STATUS.PENDING ? "bg-orange-500 hover:bg-orange-600 border-transparent text-white" : "hover:bg-orange-50 border-orange-100 text-orange-600"
-                    )}
-                    onClick={() => updateStatus(TASK_STATUS.PENDING)}
-                  >
-                    <CircleAlert className="h-5 w-5" /> Pending
-                  </Button>
-                  <Button 
-                    variant={task.status === TASK_STATUS.IN_PROGRESS ? "default" : "outline"}
-                    className={cn(
-                      "w-full rounded-2xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                      task.status === TASK_STATUS.IN_PROGRESS ? "bg-blue-500 hover:bg-blue-600 border-transparent text-white" : "hover:bg-blue-50 border-blue-100 text-blue-600"
-                    )}
-                    onClick={() => updateStatus(TASK_STATUS.IN_PROGRESS)}
-                  >
-                    <Clock className="h-5 w-5" /> In Progress
-                  </Button>
-                  <Button 
-                    variant={task.status === TASK_STATUS.UNDER_REVIEW ? "default" : "outline"}
-                    className={cn(
-                      "w-full rounded-2xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                      task.status === TASK_STATUS.UNDER_REVIEW ? "bg-purple-500 hover:bg-purple-600 border-transparent text-white" : "hover:bg-purple-50 border-purple-100 text-purple-600"
-                    )}
-                    onClick={() => updateStatus(TASK_STATUS.UNDER_REVIEW)}
-                  >
-                    <Eye className="h-5 w-5" /> Under Review
-                  </Button>
-                  <Button 
-                    variant={task.status === TASK_STATUS.COMPLETED ? "default" : "outline"}
-                    className={cn(
-                      "w-full rounded-2xl h-14 justify-start gap-4 font-bold transition-all border-2",
-                      task.status === TASK_STATUS.COMPLETED ? "bg-green-500 hover:bg-green-600 border-transparent text-white" : "hover:bg-green-50 border-green-100 text-green-600"
-                    )}
-                    onClick={() => updateStatus(TASK_STATUS.COMPLETED)}
-                  >
-                    <CircleCheck className="h-5 w-5" /> Completed
-                  </Button>
-                </div>
-              </Card>
-            )}
-          </div>
+          {isAssignedDeveloper && !task.isApproved && task.status !== TASK_STATUS.ARCHIVED && (
+            <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-8">
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] mb-8 text-muted-foreground">Status Transitions</h3>
+              <div className="space-y-3">
+                <Button 
+                  variant={task.status === TASK_STATUS.PENDING ? "default" : "outline"}
+                  className={cn(
+                    "w-full rounded-2xl h-14 justify-start gap-4 font-bold transition-all border-2",
+                    task.status === TASK_STATUS.PENDING ? "bg-orange-500 hover:bg-orange-600 border-transparent text-white" : "hover:bg-orange-50 border-orange-100 text-orange-600"
+                  )}
+                  onClick={() => updateStatus(TASK_STATUS.PENDING)}
+                >
+                  <CircleAlert className="h-5 w-5" /> Pending
+                </Button>
+                <Button 
+                  variant={task.status === TASK_STATUS.IN_PROGRESS ? "default" : "outline"}
+                  className={cn(
+                    "w-full rounded-2xl h-14 justify-start gap-4 font-bold transition-all border-2",
+                    task.status === TASK_STATUS.IN_PROGRESS ? "bg-blue-500 hover:bg-blue-600 border-transparent text-white" : "hover:bg-blue-50 border-blue-100 text-blue-600"
+                  )}
+                  onClick={() => updateStatus(TASK_STATUS.IN_PROGRESS)}
+                >
+                  <Clock className="h-5 w-5" /> In Progress
+                </Button>
+                <Button 
+                  variant={task.status === TASK_STATUS.UNDER_REVIEW ? "default" : "outline"}
+                  className={cn(
+                    "w-full rounded-2xl h-14 justify-start gap-4 font-bold transition-all border-2",
+                    task.status === TASK_STATUS.UNDER_REVIEW ? "bg-purple-500 hover:bg-purple-600 border-transparent text-white" : "hover:bg-purple-50 border-purple-100 text-purple-600"
+                  )}
+                  onClick={() => updateStatus(TASK_STATUS.UNDER_REVIEW)}
+                >
+                  <Eye className="h-5 w-5" /> Under Review
+                </Button>
+                <Button 
+                  variant={task.status === TASK_STATUS.COMPLETED ? "default" : "outline"}
+                  className={cn(
+                    "w-full rounded-2xl h-14 justify-start gap-4 font-bold transition-all border-2",
+                    task.status === TASK_STATUS.COMPLETED ? "bg-green-500 hover:bg-green-600 border-transparent text-white" : "hover:bg-green-50 border-green-100 text-green-600"
+                  )}
+                  onClick={() => updateStatus(TASK_STATUS.COMPLETED)}
+                >
+                  <CircleCheck className="h-5 w-5" /> Completed
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

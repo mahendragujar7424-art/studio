@@ -1,8 +1,8 @@
+
 'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
-import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, where, addDoc } from 'firebase/firestore';
 import { ROLES, TASK_STATUS, TASK_PRIORITY } from '@/lib/constants';
@@ -409,10 +409,8 @@ function TasksContent() {
 
 export default function TasksPage() {
   return (
-    <DashboardLayout>
-      <React.Suspense fallback={<div className="animate-pulse h-96 bg-white rounded-3xl" />}>
-        <TasksContent />
-      </React.Suspense>
-    </DashboardLayout>
+    <React.Suspense fallback={<div className="animate-pulse h-96 bg-white rounded-3xl" />}>
+      <TasksContent />
+    </React.Suspense>
   );
 }

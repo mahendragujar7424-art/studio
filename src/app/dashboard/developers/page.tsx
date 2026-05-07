@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -20,7 +19,6 @@ import {
   Shield, 
   Clock,
   AlertTriangle,
-  Lock,
   Code2,
   Users,
   Edit,
@@ -214,190 +212,186 @@ export default function DevelopersPage() {
 
   if (!isProfileAdmin && !isDevsLoading && profile) {
     return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-          <Shield className="h-16 w-16 text-destructive/50" />
-          <h1 className="text-2xl font-bold font-headline">Access Denied</h1>
-        </div>
-      </DashboardLayout>
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <Shield className="h-16 w-16 text-destructive/50" />
+        <h1 className="text-2xl font-bold font-headline">Access Denied</h1>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Developer Directory</h1>
-            <p className="text-muted-foreground mt-2 text-lg">Manage technical staff and team deployments.</p>
-          </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
-                <UserPlus className="h-5 w-5" /> Add Developer
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold font-headline">Provision Developer</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreateDeveloper} className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Full Name</Label>
-                  <Input placeholder="Jane Doe" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Email Address</Label>
-                  <Input type="email" placeholder="jane@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Initial Password</Label>
-                  <div className="relative">
-                    <Input 
-                      type={showPassword ? "text" : "password"} 
-                      value={newPassword} 
-                      onChange={e => setNewPassword(e.target.value)} 
-                      required 
-                      className="h-12 rounded-xl pr-12" 
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase">Designation</Label>
-                    <Select value={newDesignation} onValueChange={setNewDesignation}>
-                      <SelectTrigger className="h-12 rounded-xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DESIGNATIONS.map(d => (
-                          <SelectItem key={d} value={d}>{d}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase">Team Assignment</Label>
-                    <Select value={newTeamId} onValueChange={setNewTeamId}>
-                      <SelectTrigger className="h-12 rounded-xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Team</SelectItem>
-                        {teams?.map(t => (
-                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter className="pt-4">
-                  <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
-                    {isSubmitting ? "Provisioning..." : "Create Developer"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Developer Directory</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Manage technical staff and team deployments.</p>
         </div>
-
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input 
-            placeholder="Search developers by name or specialty..." 
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
-          />
-        </div>
-
-        <Card className="border-none shadow-sm bg-white rounded-3xl overflow-hidden">
-          <Table>
-            <TableHeader className="bg-secondary/20">
-              <TableRow className="border-none">
-                <TableHead className="px-8 font-bold uppercase text-[10px] py-6">Developer</TableHead>
-                <TableHead className="font-bold uppercase text-[10px]">Technical Specialty</TableHead>
-                <TableHead className="font-bold uppercase text-[10px]">Team Status</TableHead>
-                <TableHead className="font-bold uppercase text-[10px]">Joined</TableHead>
-                <TableHead className="px-8 text-right font-bold uppercase text-[10px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredDevs?.map((u) => {
-                const teamName = teams?.find(t => t.id === u.teamId)?.name;
-                return (
-                  <TableRow key={u.id} className="group hover:bg-secondary/5 border-muted/20">
-                    <TableCell className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                          {u.name?.charAt(0) || 'D'}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-sm">{u.name}</span>
-                          <span className="text-xs text-muted-foreground">{u.email}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Code2 className="h-3.5 w-3.5 text-primary" />
-                        <span className="text-sm font-medium">{u.designation || 'General'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                        <Badge variant="outline" className={cn(
-                          "rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-wider",
-                          u.teamId ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-700 border-slate-200"
-                        )}>
-                          {teamName || 'Unassigned'}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground text-[10px] font-medium">
-                        <Clock className="h-3 w-3" />
-                        {u.createdAt ? format(new Date(u.createdAt), 'MMM dd, yyyy') : 'N/A'}
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-8 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="rounded-full hover:text-primary" 
-                          onClick={() => { 
-                            setEditingDev(u); 
-                            setNewName(u.name); 
-                            setNewEmail(u.email); 
-                            setNewDesignation(u.designation || 'Full-stack');
-                            setNewTeamId(u.teamId || 'none');
-                            setIsEditOpen(true); 
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-                          onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Developer' })}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
+              <UserPlus className="h-5 w-5" /> Add Developer
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold font-headline">Provision Developer</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateDeveloper} className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Full Name</Label>
+                <Input placeholder="Jane Doe" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Email Address</Label>
+                <Input type="email" placeholder="jane@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Initial Password</Label>
+                <div className="relative">
+                  <Input 
+                    type={showPassword ? "text" : "password"} 
+                    value={newPassword} 
+                    onChange={e => setNewPassword(e.target.value)} 
+                    required 
+                    className="h-12 rounded-xl pr-12" 
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase">Designation</Label>
+                  <Select value={newDesignation} onValueChange={setNewDesignation}>
+                    <SelectTrigger className="h-12 rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DESIGNATIONS.map(d => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase">Team Assignment</Label>
+                  <Select value={newTeamId} onValueChange={setNewTeamId}>
+                    <SelectTrigger className="h-12 rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Team</SelectItem>
+                      {teams?.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter className="pt-4">
+                <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
+                  {isSubmitting ? "Provisioning..." : "Create Developer"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
+
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input 
+          placeholder="Search developers by name or specialty..." 
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
+        />
+      </div>
+
+      <Card className="border-none shadow-sm bg-white rounded-3xl overflow-hidden">
+        <Table>
+          <TableHeader className="bg-secondary/20">
+            <TableRow className="border-none">
+              <TableHead className="px-8 font-bold uppercase text-[10px] py-6">Developer</TableHead>
+              <TableHead className="font-bold uppercase text-[10px]">Technical Specialty</TableHead>
+              <TableHead className="font-bold uppercase text-[10px]">Team Status</TableHead>
+              <TableHead className="font-bold uppercase text-[10px]">Joined</TableHead>
+              <TableHead className="px-8 text-right font-bold uppercase text-[10px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredDevs?.map((u) => {
+              const teamName = teams?.find(t => t.id === u.teamId)?.name;
+              return (
+                <TableRow key={u.id} className="group hover:bg-secondary/5 border-muted/20">
+                  <TableCell className="px-8 py-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                        {u.name?.charAt(0) || 'D'}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-sm">{u.name}</span>
+                        <span className="text-xs text-muted-foreground">{u.email}</span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Code2 className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-sm font-medium">{u.designation || 'General'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Badge variant="outline" className={cn(
+                        "rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-wider",
+                        u.teamId ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-700 border-slate-200"
+                      )}>
+                        {teamName || 'Unassigned'}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground text-[10px] font-medium">
+                      <Clock className="h-3 w-3" />
+                      {u.createdAt ? format(new Date(u.createdAt), 'MMM dd, yyyy') : 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-8 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="rounded-full hover:text-primary" 
+                        onClick={() => { 
+                          setEditingDev(u); 
+                          setNewName(u.name); 
+                          setNewEmail(u.email); 
+                          setNewDesignation(u.designation || 'Full-stack');
+                          setNewTeamId(u.teamId || 'none');
+                          setIsEditOpen(true); 
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                        onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Developer' })}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
@@ -469,6 +463,6 @@ export default function DevelopersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </DashboardLayout>
+    </div>
   );
 }
