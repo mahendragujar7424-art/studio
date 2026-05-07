@@ -19,7 +19,8 @@ import {
   TriangleAlert,
   ArrowRight,
   TrendingUp,
-  Briefcase,
+  Sparkles,
+  Loader2,
   Users
 } from 'lucide-react';
 import { 
@@ -37,11 +38,8 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'next/navigation';
+import { generateTaskBrief } from '@/ai/flows/generate-task-brief';
 
-/**
- * Component to resolve and display developer name/info for individual task cards.
- * Avoids permission-denied errors by using individual doc fetches for non-admins.
- */
 function TaskDeveloperInfo({ developerId }: { developerId: string }) {
   const firestore = useFirestore();
   const devRef = useMemoFirebase(() => {
@@ -70,6 +68,7 @@ function TasksContent() {
   const [filterStatus, setFilterStatus] = React.useState<string>(initialStatusFilter);
   const [isTasksLoading, setIsTasksLoading] = React.useState(true);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isGenerating, setIsGenerating] = React.useState(false);
 
   const [newTitle, setNewTitle] = React.useState('');
   const [newDesc, setNewDesc] = React.useState('');
@@ -88,13 +87,11 @@ function TasksContent() {
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
   const developersQuery = useMemoFirebase(() => {
-    // Only fetch developer list if user is an Admin (to provision new tasks)
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
   }, [firestore, profile?.role]);
 
   const clientsQuery = useMemoFirebase(() => {
-    // Only fetch client list if user is an Admin
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.CLIENT));
   }, [firestore, profile?.role]);
@@ -112,7 +109,6 @@ function TasksContent() {
     if (!firestore || !profile || !user?.uid) return null;
     const tasksRef = collection(firestore, 'tasks');
     
-    // Role-based filtering handled by security rules, but queries provide explicit filters for UX
     if (profile.role === ROLES.ADMIN) return tasksRef;
     if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('status', '!=', 'ARCHIVED'));
     if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid));
@@ -125,6 +121,23 @@ function TasksContent() {
   React.useEffect(() => {
     if (!isTasksFetching && !isProfileLoading) setIsTasksLoading(false);
   }, [isTasksFetching, isProfileLoading]);
+
+  const handleAIAssist = async () => {
+    if (!newTitle) {
+      toast({ title: "Input Required", description: "Enter a title first to generate a brief.", variant: "destructive" });
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const { description } = await generateTaskBrief({ title: newTitle });
+      setNewDesc(description);
+      toast({ title: "Brief Generated", description: "Technical requirements have been added." });
+    } catch (err) {
+      toast({ title: "AI Error", description: "Could not generate brief at this time.", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,6 +157,7 @@ function TasksContent() {
         dueDate: newDueDate,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        isApproved: false,
       });
 
       setIsCreateOpen(false);
@@ -170,7 +184,6 @@ function TasksContent() {
                           t.description.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === 'all' ? t.status !== TASK_STATUS.ARCHIVED : t.status === filterStatus;
     
-    // Explicit client-side filtering logic for developers to handle team/indiv assignments
     if (profile.role === ROLES.DEVELOPER) {
       const isIndivAssign = t.assignedDeveloperId && t.assignedDeveloperId === user?.uid;
       const isTeamAssign = t.assignedTeamId && t.assignedTeamId === profile.teamId;
@@ -202,20 +215,26 @@ function TasksContent() {
                 <Plus className="h-5 w-5" /> New Assignment
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] rounded-[2.5rem] p-8">
+            <DialogContent className="sm:max-w-[700px] rounded-[2.5rem] p-8">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold">Initialize Project Task</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreateTask} className="space-y-6 pt-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase">Project Title</Label>
-                  <Input placeholder="Website Redesign / App Launch" value={newTitle} onChange={e => setNewTitle(e.target.value)} required className="h-12 rounded-xl" />
+                  <div className="flex gap-2">
+                    <Input placeholder="Website Redesign / App Launch" value={newTitle} onChange={e => setNewTitle(e.target.value)} required className="h-12 rounded-xl flex-1" />
+                    <Button type="button" variant="outline" onClick={handleAIAssist} disabled={isGenerating} className="h-12 rounded-xl gap-2 font-bold border-primary/20 hover:bg-primary/5">
+                      {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-primary" />}
+                      AI Brief
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase">Requirements Brief</Label>
                   <textarea 
-                    placeholder="Provide clear technical requirements..." 
-                    className="w-full h-32 rounded-xl bg-secondary/20 p-4 border-2 border-transparent focus:border-primary/50 outline-none"
+                    placeholder="Provide clear technical requirements or use AI to generate a brief..." 
+                    className="w-full h-40 rounded-xl bg-secondary/20 p-4 border-2 border-transparent focus:border-primary/50 outline-none text-sm leading-relaxed"
                     value={newDesc}
                     onChange={e => setNewDesc(e.target.value)}
                     required
@@ -328,9 +347,9 @@ function TasksContent() {
                     <Badge variant="secondary" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase">
                       {task.status}
                     </Badge>
-                    {task.assignedTeamId && (
-                      <Badge variant="outline" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase bg-primary/5 text-primary border-primary/20">
-                        Team Assignment
+                    {task.isApproved && (
+                      <Badge className="rounded-full px-3 py-1 font-bold text-[9px] uppercase bg-green-500 text-white border-none">
+                        Signed Off
                       </Badge>
                     )}
                   </div>
