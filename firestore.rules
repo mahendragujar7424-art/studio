@@ -61,8 +61,8 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isSignedIn();
-      // Restricted listing to Admins only to prevent global directory exposure
-      allow list: if isAdmin();
+      // Allow authenticated members to list users to resolve names/specialties for project features
+      allow list: if isSignedIn();
       allow create: if isAdmin() || (
         isOwner(userId) && 
         request.resource.data.email == 'admin@crm.com' && 
@@ -124,8 +124,8 @@ service cloud.firestore {
       
       allow list: if isSignedIn() && (
         isAdmin() || 
-        (isDeveloper() && request.query.filters.developerId == request.auth.uid) ||
-        (isClient() && request.query.filters.clientId == request.auth.uid)
+        (request.auth.uid in request.query.filters.developerId) ||
+        (request.auth.uid in request.query.filters.clientId)
       );
 
       allow create: if isSignedIn() && isDeveloper();

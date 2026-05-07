@@ -45,8 +45,10 @@ export default function WorkUpdatesPage() {
   const { data: myTasks } = useCollection(myTasksQuery);
 
   // Fetch updates based on role
+  // We gate this query heavily to ensure it only fires when all criteria are met
   const updatesQuery = useMemoFirebase(() => {
     if (!firestore || !profile?.role || !user?.uid) return null;
+    
     const updatesRef = collection(firestore, 'work_updates');
     
     // For administrators, we fetch the global log
