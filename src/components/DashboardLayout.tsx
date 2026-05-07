@@ -19,7 +19,8 @@ import {
   Receipt,
   Send,
   MessageSquare,
-  ShieldAlert
+  ShieldAlert,
+  Code2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -103,9 +104,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     if (role === ROLES.ADMIN) {
       return [
         ...common,
-        { name: 'User Management', href: '/dashboard/users', icon: UserCheck },
-        { name: 'All Projects', href: '/dashboard/tasks', icon: CheckSquare },
+        { name: 'Developers', href: '/dashboard/developers', icon: Code2 },
+        { name: 'Clients', href: '/dashboard/clients', icon: Users },
         { name: 'Teams', href: '/dashboard/teams', icon: Briefcase },
+        { name: 'All Projects', href: '/dashboard/tasks', icon: CheckSquare },
+        { name: 'User Management', href: '/dashboard/users', icon: UserCheck },
         { name: 'Financials', href: '/dashboard/financials', icon: CreditCard },
         { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         { name: 'Settings', href: '/dashboard/settings', icon: Settings },
