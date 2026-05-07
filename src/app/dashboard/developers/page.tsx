@@ -4,8 +4,8 @@
 import * as React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
-import { setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, query, where, arrayUnion } from 'firebase/firestore';
+import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
@@ -21,7 +21,8 @@ import {
   Clock,
   AlertTriangle,
   Lock,
-  Code2
+  Code2,
+  Users
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -70,6 +71,7 @@ export default function DevelopersPage() {
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
   const [newDesignation, setNewDesignation] = React.useState('Full-stack');
+  const [newTeamId, setNewTeamId] = React.useState<string>('none');
 
   const currentUserRef = useMemoFirebase(() => {
     if (!firestore || !currentUser?.uid) return null;
@@ -85,6 +87,13 @@ export default function DevelopersPage() {
 
   const { data: developers, isLoading: isDevsLoading } = useCollection(developersQuery);
 
+  const teamsQuery = useMemoFirebase(() => {
+    if (!firestore || profile?.role !== ROLES.ADMIN) return null;
+    return collection(firestore, 'teams');
+  }, [firestore, profile?.role]);
+
+  const { data: teams } = useCollection(teamsQuery);
+
   const handleCreateDeveloper = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
@@ -94,7 +103,7 @@ export default function DevelopersPage() {
     const FIXED_PASSWORD = "123456";
 
     try {
-      secondaryApp = initializeApp(firebaseConfig, 'SecondaryAppDev');
+      secondaryApp = initializeApp(firebaseConfig, 'SecondaryAppDev_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, FIXED_PASSWORD);
       const newUser = userCredential.user;
@@ -105,6 +114,7 @@ export default function DevelopersPage() {
         email: newEmail,
         role: ROLES.DEVELOPER,
         designation: newDesignation,
+        teamId: newTeamId === 'none' ? null : newTeamId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -112,17 +122,34 @@ export default function DevelopersPage() {
       const userDocRef = doc(firestore, 'users', newUser.uid);
       setDocumentNonBlocking(userDocRef, userData, { merge: false });
 
-      toast({ title: "Developer Provisioned", description: `${newName} added as ${newDesignation}.` });
+      // If a team is selected, update the team's developer list
+      if (newTeamId !== 'none') {
+        const teamRef = doc(firestore, 'teams', newTeamId);
+        updateDocumentNonBlocking(teamRef, {
+          developerIds: arrayUnion(newUser.uid)
+        });
+      }
+
+      toast({ 
+        title: "Developer Provisioned", 
+        description: `${newName} added as ${newDesignation}${newTeamId !== 'none' ? ' to chosen team' : ''}.` 
+      });
+      
       setIsCreateOpen(false);
-      setNewName('');
-      setNewEmail('');
-      setNewDesignation('Full-stack');
+      resetForm();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       if (secondaryApp) await deleteApp(secondaryApp);
       setIsSubmitting(false);
     }
+  };
+
+  const resetForm = () => {
+    setNewName('');
+    setNewEmail('');
+    setNewDesignation('Full-stack');
+    setNewTeamId('none');
   };
 
   const confirmDelete = () => {
@@ -156,7 +183,7 @@ export default function DevelopersPage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <h1 className="text-4xl font-bold font-headline tracking-tight">Developer Management</h1>
-            <p className="text-muted-foreground mt-2 text-lg">Manage technical staff and project assignments.</p>
+            <p className="text-muted-foreground mt-2 text-lg">Manage technical staff and team deployments.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
@@ -177,18 +204,34 @@ export default function DevelopersPage() {
                   <Label className="text-xs font-bold uppercase">Email Address</Label>
                   <Input type="email" placeholder="jane@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Designation / Specialty</Label>
-                  <Select value={newDesignation} onValueChange={setNewDesignation}>
-                    <SelectTrigger className="h-12 rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DESIGNATIONS.map(d => (
-                        <SelectItem key={d} value={d}>{d} Developer</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase">Designation</Label>
+                    <Select value={newDesignation} onValueChange={setNewDesignation}>
+                      <SelectTrigger className="h-12 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DESIGNATIONS.map(d => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase">Team Assignment</Label>
+                    <Select value={newTeamId} onValueChange={setNewTeamId}>
+                      <SelectTrigger className="h-12 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Team</SelectItem>
+                        {teams?.map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="p-4 rounded-xl bg-secondary/10 flex items-center gap-3">
                   <Lock className="h-4 w-4 text-muted-foreground" />
@@ -226,48 +269,57 @@ export default function DevelopersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredDevs?.map((u) => (
-                <TableRow key={u.id} className="group hover:bg-secondary/5 border-muted/20">
-                  <TableCell className="px-8 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                        {u.name?.charAt(0) || 'D'}
+              {filteredDevs?.map((u) => {
+                const teamName = teams?.find(t => t.id === u.teamId)?.name;
+                return (
+                  <TableRow key={u.id} className="group hover:bg-secondary/5 border-muted/20">
+                    <TableCell className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                          {u.name?.charAt(0) || 'D'}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm">{u.name}</span>
+                          <span className="text-xs text-muted-foreground">{u.email}</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-sm">{u.name}</span>
-                        <span className="text-xs text-muted-foreground">{u.email}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Code2 className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-sm font-medium">{u.designation || 'General'}</span>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Code2 className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-sm font-medium">{u.designation || 'General'}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-wider">
-                      {u.teamId ? 'Assigned' : 'Available'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground text-[10px] font-medium">
-                      <Clock className="h-3 w-3" />
-                      {u.createdAt ? format(new Date(u.createdAt), 'MMM dd, yyyy') : 'N/A'}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-8 text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-                      onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Developer' })}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Badge variant="outline" className={cn(
+                          "rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-wider",
+                          u.teamId ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-700 border-slate-200"
+                        )}>
+                          {teamName || 'Unassigned'}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground text-[10px] font-medium">
+                        <Clock className="h-3 w-3" />
+                        {u.createdAt ? format(new Date(u.createdAt), 'MMM dd, yyyy') : 'N/A'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-8 text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                        onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Developer' })}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Card>
@@ -281,7 +333,7 @@ export default function DevelopersPage() {
             </div>
             <AlertDialogTitle className="text-2xl font-bold">Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove <span className="font-bold text-foreground">{userToDelete?.name}</span> from the technical team?
+              Remove <span className="font-bold text-foreground">{userToDelete?.name}</span> from the technical team? This will revoke all project access.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 mt-4">
@@ -294,4 +346,8 @@ export default function DevelopersPage() {
       </AlertDialog>
     </DashboardLayout>
   );
+}
+
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
 }
