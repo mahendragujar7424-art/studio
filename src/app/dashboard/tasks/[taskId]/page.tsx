@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -180,7 +181,9 @@ export default function TaskDetailPage() {
   const isAssignedDeveloper = profile?.role === ROLES.DEVELOPER && (task.assignedDeveloperId === user?.uid || task.assignedTeamId === profile.teamId);
   const isClient = profile?.role === ROLES.CLIENT && task.assignedClientId === user?.uid;
   const isAdmin = profile?.role === ROLES.ADMIN;
-  const canUpdateProgress = isAssignedDeveloper;
+  
+  // LOCK DOWN: Only assigned developers can update progress, and ONLY if not yet approved
+  const canUpdateProgress = isAssignedDeveloper && !task.isApproved;
 
   return (
     <DashboardLayout>
@@ -200,12 +203,13 @@ export default function TaskDetailPage() {
                     </Badge>
                     <Badge className={cn(
                       "border-none font-bold uppercase text-[9px] px-3 py-1",
+                      task.isApproved ? "bg-green-600 text-white" :
                       task.status === TASK_STATUS.COMPLETED ? "bg-green-100 text-green-700" : 
                       task.status === TASK_STATUS.UNDER_REVIEW ? "bg-orange-100 text-orange-700" :
                       task.status === TASK_STATUS.ARCHIVED ? "bg-slate-100 text-slate-700" :
                       "bg-primary/10 text-primary"
                     )}>
-                      {task.status}
+                      {task.isApproved ? "Signed Off" : task.status}
                     </Badge>
                   </div>
                   <h1 className="text-3xl md:text-4xl font-bold font-headline leading-tight tracking-tight">{task.title}</h1>
@@ -225,16 +229,24 @@ export default function TaskDetailPage() {
                 <Progress value={task.progress || 0} className="h-4 rounded-full" />
               </div>
 
+              {/* Formal Approval Section */}
               {isClient && task.status === TASK_STATUS.COMPLETED && !task.isApproved && (
-                <div className="p-6 md:p-8 rounded-[2rem] bg-green-50 border-2 border-green-200 mb-10 flex flex-col items-center text-center gap-4">
+                <div className="p-6 md:p-8 rounded-[2rem] bg-green-50 border-2 border-green-200 mb-10 flex flex-col items-center text-center gap-4 animate-in fade-in zoom-in duration-500">
                   <ShieldCheck className="h-12 w-12 text-green-600" />
                   <div>
-                    <h3 className="text-xl font-bold text-green-900">Project Ready for Sign-off</h3>
-                    <p className="text-green-700 mt-1 max-w-md">Your developer has finalized all requirements. Please provide your formal approval to conclude this project.</p>
+                    <h3 className="text-xl font-bold text-green-900">Formal Sign-off Required</h3>
+                    <p className="text-green-700 mt-1 max-w-md">The developer has marked this project as complete. Please provide your final approval to lock the records and finalize delivery.</p>
                   </div>
                   <Button onClick={handleSignOff} className="bg-green-600 hover:bg-green-700 h-14 rounded-2xl px-12 font-bold shadow-xl shadow-green-200 transition-all hover:scale-105 w-full sm:w-auto">
                     Approve & Sign-off Project
                   </Button>
+                </div>
+              )}
+
+              {task.isApproved && (
+                <div className="p-4 rounded-xl bg-green-500/10 text-green-700 border border-green-200 mb-10 flex items-center gap-3">
+                  <ShieldCheck className="h-5 w-5" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Project officially signed off. Controls are now locked.</span>
                 </div>
               )}
 
@@ -274,7 +286,7 @@ export default function TaskDetailPage() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="suggestions" className="pt-8 space-y-8">
-                {task.status !== TASK_STATUS.ARCHIVED && (
+                {task.status !== TASK_STATUS.ARCHIVED && !task.isApproved && (
                   <Card className="border-none shadow-sm bg-white rounded-[2rem] p-6 md:p-8">
                     <form onSubmit={handlePostMessage} className="space-y-4">
                       <Label className="text-[10px] font-bold uppercase tracking-widest ml-1 text-muted-foreground flex items-center gap-2">
@@ -334,11 +346,6 @@ export default function TaskDetailPage() {
                       </div>
                     </div>
                   ))}
-                  {(!comments || comments.length === 0) && (
-                    <div className="text-center py-16 text-muted-foreground italic bg-white/50 rounded-[2.5rem] border-2 border-dashed border-primary/20 px-4">
-                      No collaboration logs recorded for this task.
-                    </div>
-                  )}
                 </div>
               </TabsContent>
               <TabsContent value="history">
@@ -353,7 +360,8 @@ export default function TaskDetailPage() {
           </div>
 
           <div className="space-y-8">
-            {canUpdateProgress && task.status !== TASK_STATUS.ARCHIVED ? (
+            {/* LOCK CONTROLS IF SIGNED OFF */}
+            {canUpdateProgress ? (
               <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-8">
                 <h3 className="text-base font-bold mb-8 flex items-center gap-3 text-primary uppercase tracking-widest">
                   <TrendingUp className="h-5 w-5" /> Milestone Control
@@ -386,17 +394,24 @@ export default function TaskDetailPage() {
                    <Clock className="h-5 w-5" /> Project Pulse
                  </h3>
                  <div className="space-y-4">
-                   <div className="p-5 rounded-2xl bg-secondary/10 border border-secondary">
-                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1 tracking-widest">Active Phase</p>
-                     <p className="font-bold text-primary text-lg">{task.status}</p>
+                   <div className={cn(
+                     "p-5 rounded-2xl border transition-colors",
+                     task.isApproved ? "bg-green-500/5 border-green-500/20" : "bg-secondary/10 border-secondary"
+                   )}>
+                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1 tracking-widest">Final Status</p>
+                     <p className={cn("font-bold text-lg", task.isApproved ? "text-green-600" : "text-primary")}>
+                       {task.isApproved ? "Signed Off" : task.status}
+                     </p>
                    </div>
-                   <div className="p-5 rounded-2xl bg-secondary/10 border border-secondary">
-                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1 tracking-widest">Current Completion</p>
+                   <div className="p-5 rounded-2xl bg-secondary/10 border-secondary border">
+                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1 tracking-widest">Project Completion</p>
                      <p className="font-bold text-primary text-lg">{task.progress}%</p>
                    </div>
                    <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10">
                      <p className="text-xs text-muted-foreground italic leading-relaxed">
-                       {task.status === TASK_STATUS.ARCHIVED 
+                       {task.isApproved 
+                         ? "This project has been formally signed off. No further modifications allowed."
+                         : task.status === TASK_STATUS.ARCHIVED 
                          ? "This project is now locked in archives." 
                          : "Progress reflect instantly as technical milestones are achieved by your lead developer."}
                      </p>
@@ -405,7 +420,8 @@ export default function TaskDetailPage() {
                </Card>
             )}
 
-            {canUpdateProgress && task.status !== TASK_STATUS.ARCHIVED && (
+            {/* LOCK TRANSITIONS IF SIGNED OFF */}
+            {isAssignedDeveloper && !task.isApproved && task.status !== TASK_STATUS.ARCHIVED && (
               <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-8">
                 <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] mb-8 text-muted-foreground">Status Transitions</h3>
                 <div className="space-y-3">

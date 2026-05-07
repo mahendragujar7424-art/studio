@@ -104,6 +104,7 @@
         "assignedTeamId": { "type": "string" },
         "assignedClientId": { "type": "string" },
         "createdById": { "type": "string" },
+        "isApproved": { "type": "boolean", "description": "Whether the client has formally approved the task completion." },
         "dueDate": { "type": "string", "format": "date" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
