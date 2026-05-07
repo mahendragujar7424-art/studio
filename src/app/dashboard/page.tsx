@@ -36,18 +36,18 @@ export default function DashboardPage() {
 
   const { data: profile } = useDoc(userRef);
 
-  // Fetch all developers to resolve names on dashboard
+  // Fetch all developers to resolve names on dashboard - gated by profile presence
   const devsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !profile) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
-  }, [firestore]);
+  }, [firestore, profile]);
   const { data: developers } = useCollection(devsQuery);
 
-  // Fetch all teams to resolve team assignments
+  // Fetch all teams to resolve team assignments - gated by profile presence
   const teamsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !profile) return null;
     return collection(firestore, 'teams');
-  }, [firestore]);
+  }, [firestore, profile]);
   const { data: teams } = useCollection(teamsQuery);
 
   const tasksQuery = useMemoFirebase(() => {
@@ -263,4 +263,3 @@ export default function DashboardPage() {
     </DashboardLayout>
   );
 }
-

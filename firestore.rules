@@ -55,6 +55,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn();
       // Allow listing if the user is an admin, OR if any member is filtering for the Developer directory
+      // Use request.query.filters.role check to allow dashboard to resolve developer names
       allow list: if isAdmin() || (isSignedIn() && request.query.filters.role == 'Developer');
       allow create: if isAdmin() || (
         isOwner(userId) && 
