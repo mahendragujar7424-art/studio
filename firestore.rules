@@ -22,17 +22,14 @@ service cloud.firestore {
       return exists(path) ? get(path).data : null;
     }
 
-    // Improved task membership check: Prioritize direct assignment to avoid unnecessary cross-doc reads
     function isTaskMember(taskData) {
       if (!isSignedIn() || taskData == null) return false;
       let uid = request.auth.uid;
       
-      // 1. Check direct individual assignment (Fastest)
       if (taskData.assignedDeveloperId == uid || taskData.assignedClientId == uid) {
         return true;
       }
       
-      // 2. Check team assignment (Requires cross-doc read)
       if (taskData.assignedTeamId != null) {
         let profile = getUserData(uid);
         return profile != null && profile.teamId == taskData.assignedTeamId;
@@ -100,6 +97,17 @@ service cloud.firestore {
       allow list, get: if isSignedIn() && canAccessComments();
       allow create: if isSignedIn() && canAccessComments() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if resource != null && (isAdmin() || isOwner(resource.data.userId));
+    }
+
+    match /work_updates/{updateId} {
+      function getRelatedTask(taskId) {
+        let path = /databases/$(database)/documents/tasks/$(taskId);
+        return exists(path) ? get(path).data : null;
+      }
+
+      allow list, get: if isSignedIn(); // Queries must handle specific filtering
+      allow create: if isSignedIn() && isDeveloper() && isTaskMember(getRelatedTask(request.resource.data.projectId));
+      allow update, delete: if isAdmin();
     }
   }
 }

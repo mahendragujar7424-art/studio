@@ -14,7 +14,8 @@ import {
   User as UserIcon,
   Briefcase,
   UserCheck,
-  X
+  X,
+  History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -74,8 +75,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
-  // Improved loading state: only show full screen on initial auth check
-  // Once user is known, we render the layout and show internal skeletons if needed
   if (isUserLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -94,6 +93,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const links = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Projects', href: '/dashboard/tasks', icon: CheckSquare },
+    { name: 'Activity', href: '/dashboard/updates', icon: History },
     ...(role === ROLES.ADMIN ? [
       { name: 'Teams', href: '/dashboard/teams', icon: Briefcase },
       { name: 'Developers', href: '/dashboard/developers', icon: UserCheck },
@@ -105,7 +105,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
-      {/* Mobile Overlay */}
       <div 
         className={cn(
           "fixed inset-0 bg-black/60 z-[40] md:hidden backdrop-blur-sm transition-opacity duration-300",

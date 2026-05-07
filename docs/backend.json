@@ -122,6 +122,22 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "taskId", "message", "timestamp"]
+    },
+    "WorkUpdate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WorkUpdate",
+      "type": "object",
+      "description": "A progress log entry posted by a developer.",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "projectTitle": { "type": "string" },
+        "developerId": { "type": "string" },
+        "developerName": { "type": "string" },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["projectId", "developerId", "developerName", "description", "timestamp"]
     }
   },
   "auth": {
@@ -169,6 +185,14 @@
           "entityName": "Comment",
           "schema": { "$ref": "#/backend/entities/Comment" },
           "description": "Task comments."
+        }
+      },
+      {
+        "path": "/work_updates/{updateId}",
+        "definition": {
+          "entityName": "WorkUpdate",
+          "schema": { "$ref": "#/backend/entities/WorkUpdate" },
+          "description": "Global log of technical progress updates."
         }
       }
     ]
