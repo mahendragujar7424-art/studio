@@ -61,8 +61,8 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isSignedIn();
-      // Allow listing if the user is an admin, OR if any member is filtering for the Developer directory
-      allow list: if isAdmin() || (isSignedIn() && request.query.filters.role == 'Developer');
+      // Allow directory listing for all authenticated members to enable name resolution across the dashboard
+      allow list: if isSignedIn();
       allow create: if isAdmin() || (
         isOwner(userId) && 
         request.resource.data.email == 'admin@crm.com' && 
