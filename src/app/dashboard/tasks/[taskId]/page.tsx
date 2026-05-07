@@ -50,26 +50,38 @@ export default function TaskDetailPage() {
     return doc(firestore, 'tasks', taskId as string);
   }, [firestore, taskId, user]);
 
-  const { data: task, isLoading } = useDoc(taskRef);
-
-  const commentsQuery = useMemoFirebase(() => {
-    if (!firestore || !taskId || !user) return null;
-    return query(
-      collection(firestore, 'tasks', taskId as string, 'comments'),
-      orderBy('timestamp', 'desc')
-    );
-  }, [firestore, taskId, user]);
-
-  const { data: comments } = useCollection(commentsQuery);
+  const { data: task, isLoading: isTaskLoading } = useDoc(taskRef);
 
   const userRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user?.uid]);
 
-  const { data: profile } = useDoc(userRef);
+  const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
-  // Fetch developer info if task exists and user is not the developer
+  // AUTH GUARD: Only attempt to fetch comments if we've verified the user is authorized.
+  // This prevents Firestore Security Rule "permission denied" errors for unauthorized users.
+  const commentsQuery = useMemoFirebase(() => {
+    if (!firestore || !taskId || !user || !task || !profile) return null;
+
+    const isIndivAssign = task.assignedDeveloperId === user.uid;
+    const isTeamAssign = task.assignedTeamId === profile.teamId;
+    const isClientAssign = task.assignedClientId === user.uid;
+    const isAdmin = profile.role === ROLES.ADMIN;
+
+    if (!isAdmin && !isIndivAssign && !isTeamAssign && !isClientAssign) {
+      return null;
+    }
+
+    return query(
+      collection(firestore, 'tasks', taskId as string, 'comments'),
+      orderBy('timestamp', 'desc')
+    );
+  }, [firestore, taskId, user, task, profile]);
+
+  const { data: comments } = useCollection(commentsQuery);
+
+  // Fetch developer info if task exists
   const devRef = useMemoFirebase(() => {
     if (!firestore || !task?.assignedDeveloperId) return null;
     return doc(firestore, 'users', task.assignedDeveloperId);
@@ -146,10 +158,10 @@ export default function TaskDetailPage() {
     router.push('/dashboard/tasks');
   };
 
-  if (isLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
+  if (isTaskLoading || isProfileLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
   if (!task) return <DashboardLayout>Task not found.</DashboardLayout>;
 
-  const isAssignedDeveloper = profile?.role === ROLES.DEVELOPER && task.assignedDeveloperId === user?.uid;
+  const isAssignedDeveloper = profile?.role === ROLES.DEVELOPER && (task.assignedDeveloperId === user?.uid || task.assignedTeamId === profile.teamId);
   const isClient = profile?.role === ROLES.CLIENT && task.assignedClientId === user?.uid;
   const isAdmin = profile?.role === ROLES.ADMIN;
   const canUpdateProgress = isAssignedDeveloper;

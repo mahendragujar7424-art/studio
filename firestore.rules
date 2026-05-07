@@ -23,7 +23,7 @@ service cloud.firestore {
 
     // Improved task membership check: Prioritize direct assignment to avoid unnecessary cross-doc reads
     function isTaskMember(taskData) {
-      if (!isSignedIn()) return false;
+      if (!isSignedIn() || taskData == null) return false;
       let uid = request.auth.uid;
       
       // 1. Check direct individual assignment (Fastest)
@@ -86,11 +86,17 @@ service cloud.firestore {
 
     match /tasks/{taskId}/comments/{commentId} {
       function getParentTask() {
-        return get(/databases/$(database)/documents/tasks/$(taskId)).data;
+        let taskDoc = get(/databases/$(database)/documents/tasks/$(taskId));
+        return taskDoc != null ? taskDoc.data : null;
       }
-      allow list: if isSignedIn() && (isAdmin() || isTaskMember(getParentTask()));
-      allow get: if isSignedIn() && (isAdmin() || isTaskMember(getParentTask()));
-      allow create: if isSignedIn() && (isAdmin() || isTaskMember(getParentTask())) && request.resource.data.userId == request.auth.uid;
+      
+      function canAccessComments() {
+        let parentTask = getParentTask();
+        return parentTask != null && (isAdmin() || isTaskMember(parentTask));
+      }
+
+      allow list, get: if isSignedIn() && canAccessComments();
+      allow create: if isSignedIn() && canAccessComments() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if resource != null && (isAdmin() || isOwner(resource.data.userId));
     }
   }

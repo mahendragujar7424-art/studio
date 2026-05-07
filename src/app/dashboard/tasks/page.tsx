@@ -65,7 +65,7 @@ function TasksContent() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user?.uid]);
 
-  const { data: profile } = useDoc(userRef);
+  const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
   const developersQuery = useMemoFirebase(() => {
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
@@ -91,19 +91,15 @@ function TasksContent() {
     const tasksRef = collection(firestore, 'tasks');
     
     if (profile.role === ROLES.ADMIN) return tasksRef;
-    if (profile.role === ROLES.DEVELOPER) {
-      // Developers can see tasks assigned to them OR their team
-      return query(tasksRef, where('status', '!=', 'ARCHIVED'));
-    }
-    if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid));
-    return null;
+    // Developers and Clients fetch all non-archived to filter locally (Firestore OR limitations)
+    return query(tasksRef, where('status', '!=', 'ARCHIVED'));
   }, [firestore, profile, user?.uid]);
 
-  const { data: tasks, isLoading } = useCollection(tasksQuery);
+  const { data: tasks, isLoading: isTasksFetching } = useCollection(tasksQuery);
 
   React.useEffect(() => {
-    if (!isLoading) setIsTasksLoading(false);
-  }, [isLoading]);
+    if (!isTasksFetching && !isProfileLoading) setIsTasksLoading(false);
+  }, [isTasksFetching, isProfileLoading]);
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,15 +139,22 @@ function TasksContent() {
   };
 
   const filteredTasks = tasks?.filter(t => {
+    // CRITICAL: While profile is loading, don't show any tasks for non-admins 
+    // to avoid triggering unauthorized get requests and permission errors.
+    if (!profile) return false;
+
     const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) || 
                           t.description.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === 'all' ? t.status !== TASK_STATUS.ARCHIVED : t.status === filterStatus;
     
-    // Additional role-based filtering for developers (since complex Firestore OR queries are limited)
-    if (profile?.role === ROLES.DEVELOPER) {
+    if (profile.role === ROLES.DEVELOPER) {
       const isIndivAssign = t.assignedDeveloperId === user?.uid;
       const isTeamAssign = t.assignedTeamId === profile.teamId;
       if (!isIndivAssign && !isTeamAssign) return false;
+    }
+
+    if (profile.role === ROLES.CLIENT) {
+      if (t.assignedClientId !== user?.uid) return false;
     }
 
     return matchesSearch && matchesStatus;
