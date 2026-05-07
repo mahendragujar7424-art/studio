@@ -107,6 +107,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         { name: 'All Projects', href: '/dashboard/tasks', icon: CheckSquare },
         { name: 'Teams', href: '/dashboard/teams', icon: Briefcase },
         { name: 'Financials', href: '/dashboard/financials', icon: CreditCard },
+        { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         { name: 'Settings', href: '/dashboard/settings', icon: Settings },
       ];
     }
