@@ -20,7 +20,8 @@ import {
   X,
   ChevronDown,
   Search,
-  Check
+  Check,
+  Code2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -66,14 +67,14 @@ export default function TeamsPage() {
     return collection(firestore, 'teams');
   }, [firestore]);
 
-  const { data: teams } = useCollection(teamsQuery);
+  const { data: teams, isLoading: isTeamsLoading } = useCollection(teamsQuery);
 
   const devsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
-  }, [firestore]);
+  }, [firestore, profile?.role]);
 
-  const { data: developers } = useCollection(devsQuery);
+  const { data: developers, isLoading: isDevsLoading } = useCollection(devsQuery);
 
   const toggleDeveloperSelection = (id: string) => {
     setSelectedDeveloperIds(prev => 
@@ -99,7 +100,7 @@ export default function TeamsPage() {
         createdAt: new Date().toISOString(),
       });
 
-      // Also update each user's teamId for security rule checks and profile visibility
+      // Update developers to link to this team
       for (const devId of selectedDeveloperIds) {
         const devRef = doc(firestore, 'users', devId);
         updateDocumentNonBlocking(devRef, { teamId: teamRef.id });
@@ -180,17 +181,21 @@ export default function TeamsPage() {
                 </div>
                 
                 <div className="space-y-3">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Assign Developers (Searchable)</Label>
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Assign Developers</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button type="button" variant="outline" className="w-full h-14 justify-between rounded-xl px-4 border-2 font-bold text-sm bg-secondary/10">
-                        {selectedDeveloperIds.length > 0 
-                          ? `${selectedDeveloperIds.length} Developers Selected` 
-                          : "Select Team Members"}
+                        {isDevsLoading ? (
+                          <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Fetching Roster...</span>
+                        ) : selectedDeveloperIds.length > 0 ? (
+                          `${selectedDeveloperIds.length} Developers Selected` 
+                        ) : (
+                          "Select Team Members"
+                        )}
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[430px] p-0 rounded-2xl overflow-hidden shadow-2xl border-none" align="start">
+                    <PopoverContent className="w-[430px] p-0 rounded-2xl overflow-hidden shadow-2xl border-none z-[100]" align="start">
                       <div className="p-4 border-b bg-secondary/10 relative">
                         <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
@@ -221,15 +226,15 @@ export default function TeamsPage() {
                                   />
                                   <div className="flex flex-col">
                                     <span className={cn("text-sm font-bold transition-colors", isSelected ? "text-primary" : "group-hover:text-primary")}>{dev.name}</span>
-                                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{dev.email}</span>
+                                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{dev.designation || 'Specialist'}</span>
                                   </div>
                                 </div>
                                 {isSelected && <Check className="h-4 w-4 text-primary" />}
                               </div>
                             );
                           })}
-                          {(!filteredDevelopers || filteredDevelopers.length === 0) && (
-                            <p className="text-center py-10 text-xs text-muted-foreground italic">No matching technical staff found.</p>
+                          {(!filteredDevelopers || filteredDevelopers.length === 0) && !isDevsLoading && (
+                            <p className="text-center py-10 text-xs text-muted-foreground italic">No technical staff available.</p>
                           )}
                         </div>
                       </ScrollArea>
@@ -253,7 +258,9 @@ export default function TeamsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {teams?.map((team) => {
+            // "Populate" logic: Resolve names and designations from the global developers list
             const teamDevs = developers?.filter(d => team.developerIds?.includes(d.id)) || [];
+            
             return (
               <Card key={team.id} className="border-none shadow-sm bg-white rounded-[2.5rem] overflow-hidden group hover:shadow-xl transition-all">
                 <CardHeader className="p-8 pb-4">
@@ -276,7 +283,10 @@ export default function TeamsPage() {
                       {teamDevs.map(dev => (
                         <Badge key={dev.id} variant="outline" className="rounded-xl px-4 py-2 flex items-center gap-3 border-2 group/badge hover:bg-secondary/20 transition-all">
                           <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                          <span className="text-xs font-bold">{dev.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold">{dev.name}</span>
+                            <span className="text-[8px] uppercase text-muted-foreground font-bold">{dev.designation || 'Developer'}</span>
+                          </div>
                           <button 
                             onClick={(e) => {
                               e.preventDefault();
@@ -313,7 +323,10 @@ export default function TeamsPage() {
               </Card>
             );
           })}
-          {(!teams || teams.length === 0) && (
+          {(isTeamsLoading || isDevsLoading) && [1, 2].map(i => (
+             <div key={i} className="h-64 rounded-[3rem] bg-white animate-pulse" />
+          ))}
+          {(!teams || teams.length === 0) && !isTeamsLoading && (
             <div className="lg:col-span-2 py-32 text-center space-y-4 bg-white rounded-[3rem] border-2 border-dashed">
               <Users className="h-12 w-12 text-muted-foreground/30 mx-auto" />
               <div className="space-y-1">
