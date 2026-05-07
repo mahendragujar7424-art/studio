@@ -77,6 +77,8 @@ export default function DevelopersPage() {
 
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
+  const [newPassword, setNewPassword] = React.useState('123456');
+  const [showPassword, setShowPassword] = React.useState(false);
   const [newDesignation, setNewDesignation] = React.useState('Full-stack');
   const [newTeamId, setNewTeamId] = React.useState<string>('none');
 
@@ -88,7 +90,6 @@ export default function DevelopersPage() {
   const { data: profile } = useDoc(currentUserRef);
 
   const developersQuery = useMemoFirebase(() => {
-    // Explicitly gate query to prevent permission errors during load
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
   }, [firestore, profile?.role]);
@@ -108,12 +109,11 @@ export default function DevelopersPage() {
 
     setIsSubmitting(true);
     let secondaryApp;
-    const FIXED_PASSWORD = "123456";
 
     try {
       secondaryApp = initializeApp(firebaseConfig, 'SecondaryAppDev_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, FIXED_PASSWORD);
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword);
       const newUser = userCredential.user;
 
       const userData = {
@@ -139,7 +139,7 @@ export default function DevelopersPage() {
 
       toast({ 
         title: "Developer Provisioned", 
-        description: `${newName} added as ${newDesignation}${newTeamId !== 'none' ? ' to chosen team' : ''}.` 
+        description: `${newName} added as ${newDesignation}.` 
       });
       
       setIsCreateOpen(false);
@@ -159,7 +159,6 @@ export default function DevelopersPage() {
     const oldTeamId = editingDev.teamId;
     const finalTeamId = newTeamId === 'none' ? null : newTeamId;
 
-    // Handle team reassignment
     if (oldTeamId !== finalTeamId) {
       if (oldTeamId) {
         const oldTeamRef = doc(firestore, 'teams', oldTeamId);
@@ -191,6 +190,7 @@ export default function DevelopersPage() {
   const resetForm = () => {
     setNewName('');
     setNewEmail('');
+    setNewPassword('123456');
     setNewDesignation('Full-stack');
     setNewTeamId('none');
     setEditingDev(null);
@@ -250,6 +250,21 @@ export default function DevelopersPage() {
                   <Label className="text-xs font-bold uppercase">Email Address</Label>
                   <Input type="email" placeholder="jane@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase">Initial Password</Label>
+                  <div className="relative">
+                    <Input 
+                      type={showPassword ? "text" : "password"} 
+                      value={newPassword} 
+                      onChange={e => setNewPassword(e.target.value)} 
+                      required 
+                      className="h-12 rounded-xl pr-12" 
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs font-bold uppercase">Designation</Label>
@@ -278,10 +293,6 @@ export default function DevelopersPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div className="p-4 rounded-xl bg-secondary/10 flex items-center gap-3">
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Default Password: 123456</p>
                 </div>
                 <DialogFooter className="pt-4">
                   <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
@@ -431,7 +442,7 @@ export default function DevelopersPage() {
                 </Select>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground bg-secondary/10 p-4 rounded-lg">Note: Modifying the email in the profile does not update the authentication email. To change login credentials, please contact support.</p>
+            <p className="text-[10px] text-muted-foreground bg-secondary/10 p-4 rounded-lg">Note: Modifying the email in the profile does not update the authentication email.</p>
           </div>
           <DialogFooter className="pt-4">
             <Button onClick={handleUpdateDeveloper} className="w-full h-14 rounded-2xl font-bold">Save Changes</Button>
@@ -447,7 +458,7 @@ export default function DevelopersPage() {
             </div>
             <AlertDialogTitle className="text-2xl font-bold">Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove <span className="font-bold text-foreground">{userToDelete?.name}</span> from the technical team? This will revoke all project access.
+              Remove <span className="font-bold text-foreground">{userToDelete?.name}</span> from the technical team?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 mt-4">

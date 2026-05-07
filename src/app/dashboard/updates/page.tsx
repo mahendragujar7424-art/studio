@@ -8,7 +8,8 @@ import { collection, query, where, orderBy, doc } from 'firebase/firestore';
 import { ROLES } from '@/lib/constants';
 import { Card, CardContent } from '@/components/ui/card';
 import { format } from 'date-fns';
-import { History, User as UserIcon, Clock, Briefcase, Loader2 } from 'lucide-react';
+import { History, User as UserIcon, Clock, Briefcase, Loader2, Info } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function WorkUpdatesPage() {
   const { user } = useUser();
@@ -21,7 +22,6 @@ export default function WorkUpdatesPage() {
 
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
-  // Fetch updates based on role
   const updatesQuery = useMemoFirebase(() => {
     if (!firestore || !profile?.role || !user?.uid) return null;
     
@@ -65,6 +65,18 @@ export default function WorkUpdatesPage() {
             </p>
           </div>
         </div>
+
+        <Alert className="bg-blue-50 border-blue-200 rounded-3xl p-6">
+          <Info className="h-5 w-5 text-blue-600" />
+          <AlertTitle className="text-blue-900 font-bold mb-1">Timeline Visibility</AlertTitle>
+          <AlertDescription className="text-blue-800 text-sm">
+            {profile?.role === ROLES.ADMIN 
+              ? "As an Admin, you are viewing a global feed of all progress logs submitted by developers across the entire organization." 
+              : profile?.role === ROLES.CLIENT 
+              ? "As a Stakeholder, this feed displays official technical milestones posted by developers specifically for your projects."
+              : "This timeline serves as your personal historical log of all progress updates you have broadcasted to stakeholders."}
+          </AlertDescription>
+        </Alert>
 
         <div className="space-y-6">
           <div className="flex items-center gap-3 mb-4">
