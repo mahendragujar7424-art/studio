@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -105,7 +104,7 @@ export default function SubmitUpdatePage() {
           </p>
         </div>
 
-        <Card className="border-none shadow-xl bg-white rounded-[2.5rem] p-10">
+        <Card className="border-none shadow-xl bg-white rounded-[2.5rem] p-6 md:p-10">
           <CardHeader className="px-0 pt-0">
             <CardTitle className="text-2xl font-bold font-headline flex items-center gap-3 text-primary">
               <Send className="h-6 w-6" /> Daily Log

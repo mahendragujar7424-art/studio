@@ -1,5 +1,4 @@
-
-# CloudCRM - Professional Task Management
+# CRM - Professional Task Management
 
 A high-performance CRM built with **TypeScript** and **React** (via Next.js), designed to bridge the gap between developers and clients with real-time progress tracking and role-based access control.
 

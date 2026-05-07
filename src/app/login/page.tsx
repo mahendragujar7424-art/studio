@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -56,7 +55,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10 space-y-8">
         <div className="text-center space-y-4">
           <div className="h-16 w-16 bg-primary rounded-3xl flex items-center justify-center text-primary-foreground font-bold text-3xl mx-auto shadow-2xl">C</div>
-          <h1 className="text-3xl font-bold font-headline">CloudCRM Portal</h1>
+          <h1 className="text-3xl font-bold font-headline">CRM Portal</h1>
         </div>
 
         <Alert className="bg-primary/5 border-primary/20 rounded-2xl">

@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -158,7 +157,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground font-bold text-xl shadow-lg shadow-primary/20">
                 C
               </div>
-              <span className="text-xl font-bold tracking-tight">CloudCRM</span>
+              <span className="text-xl font-bold tracking-tight">CRM</span>
             </Link>
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(false)}>
               <X className="h-5 w-5" />
@@ -208,7 +207,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
             <Menu className="h-6 w-6" />
           </Button>
-          <span className="text-lg font-bold">CloudCRM</span>
+          <span className="text-lg font-bold">CRM</span>
         </header>
 
         <div className={cn(

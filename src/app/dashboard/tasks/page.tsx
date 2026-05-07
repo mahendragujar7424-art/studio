@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -199,7 +198,7 @@ function TasksContent() {
         {profile?.role === ROLES.ADMIN && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
+              <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20 w-full sm:w-auto">
                 <Plus className="h-5 w-5" /> New Assignment
               </Button>
             </DialogTrigger>
@@ -369,7 +368,7 @@ function TasksContent() {
                   ) : task.assignedTeamId ? (teams?.find(t => t.id === task.assignedTeamId)?.name || 'Team') : <TaskDeveloperInfo developerId={task.assignedDeveloperId} />}
                 </div>
               </div>
-              <Button asChild variant="ghost" className="w-full rounded-xl font-bold hover:bg-primary/5">
+              <Button asChild variant="ghost" className="w-full rounded-xl font-bold hover:bg-primary/5 h-12">
                 <Link href={`/dashboard/tasks/${task.id}`}>
                   {task.status === TASK_STATUS.ARCHIVED ? 'Review Records' : 'Open Workspace'} <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>

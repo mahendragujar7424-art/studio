@@ -27,7 +27,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between bg-white/70 backdrop-blur-xl border border-white/20 rounded-full px-8 py-3 shadow-lg shadow-black/5">
           <Link href="/" className="text-2xl font-headline font-bold text-primary flex items-center gap-2 group">
             <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white text-xl shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">C</div>
-            CloudCRM<span className="text-foreground">.</span>
+            CRM<span className="text-foreground">.</span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <Link href="#features" className="text-xs font-bold uppercase tracking-[0.2em] hover:text-primary transition-colors">Features</Link>
@@ -75,19 +75,19 @@ export default function LandingPage() {
 
             <div className="flex flex-wrap justify-center gap-6 animate-in fade-in slide-in-from-bottom duration-1000 delay-300">
               {user ? (
-                <Button size="lg" className="h-18 rounded-[2rem] px-14 text-2xl font-bold shadow-2xl shadow-primary/30 hover:scale-105 transition-all" asChild>
+                <Button size="lg" className="h-18 rounded-[2rem] px-14 text-2xl font-bold shadow-2xl shadow-primary/30 hover:scale-105 transition-all w-full sm:w-auto" asChild>
                   <Link href="/dashboard">
                     Enter Workspace <ArrowRight className="h-6 w-6 ml-3" />
                   </Link>
                 </Button>
               ) : (
-                <Button size="lg" className="h-18 rounded-[2rem] px-14 text-2xl font-bold shadow-2xl shadow-primary/30 hover:scale-105 transition-all" asChild>
+                <Button size="lg" className="h-18 rounded-[2rem] px-14 text-2xl font-bold shadow-2xl shadow-primary/30 hover:scale-105 transition-all w-full sm:w-auto" asChild>
                   <Link href="/login">
                     Login to Portal <ArrowRight className="h-6 w-6 ml-3" />
                   </Link>
                 </Button>
               )}
-              <Button size="lg" variant="outline" className="h-18 rounded-[2rem] px-14 text-2xl font-bold border-2 hover:bg-primary/5 transition-all">
+              <Button size="lg" variant="outline" className="h-18 rounded-[2rem] px-14 text-2xl font-bold border-2 hover:bg-primary/5 transition-all w-full sm:w-auto">
                 The CRM Tour
               </Button>
             </div>
@@ -174,7 +174,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12 relative z-10">
           <div className="space-y-4">
             <Link href="/" className="text-3xl font-headline font-bold text-primary flex items-center gap-3">
-              CloudCRM<span className="text-foreground">.</span>
+              CRM<span className="text-foreground">.</span>
             </Link>
             <p className="text-muted-foreground text-sm font-medium tracking-wide max-w-sm">
               Advanced task orchestration for distributed teams. Precision built for performance.
@@ -186,7 +186,7 @@ export default function LandingPage() {
               <Link href="#" className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-widest">Terms of Service</Link>
               <Link href="/login" className="text-xs font-bold text-primary hover:text-primary/80 transition-colors uppercase tracking-widest border-b-2 border-primary/20 pb-1">Portal Login</Link>
             </div>
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em]">© 2024 CloudCRM Systems Inc.</p>
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em]">© 2024 CRM Systems Inc.</p>
           </div>
         </div>
       </footer>

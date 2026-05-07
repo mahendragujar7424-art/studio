@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -74,7 +73,7 @@ export default function ProfilePage() {
             )}
           </Card>
 
-          <Card className="md:col-span-2 border-none shadow-sm bg-white rounded-3xl p-8">
+          <Card className="md:col-span-2 border-none shadow-sm bg-white rounded-3xl p-6 md:p-8">
             <CardHeader className="px-0 pt-0">
               <CardTitle className="text-xl font-bold font-headline">Account Details</CardTitle>
               <CardDescription>Update your personal information below.</CardDescription>
@@ -98,7 +97,7 @@ export default function ProfilePage() {
                   <Input value={profile?.email || ''} disabled className="pl-12 h-12 rounded-xl border-2 bg-secondary/20" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 rounded-2xl bg-secondary/10 flex items-center gap-3">
                   <Shield className="h-5 w-5 text-primary" />
                   <div>

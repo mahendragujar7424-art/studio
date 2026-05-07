@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -167,7 +166,7 @@ export default function TaskDetailPage() {
             <h1 className="text-3xl font-bold font-headline">Access Denied</h1>
             <p className="text-muted-foreground max-w-sm">You are not authorized to view this project record. It may belong to another team or client.</p>
           </div>
-          <Button onClick={() => router.push('/dashboard/tasks')} variant="outline" className="rounded-xl px-8 h-12 font-bold border-2">
+          <Button onClick={() => router.push('/dashboard/tasks')} variant="outline" className="rounded-xl px-8 h-12 font-bold border-2 w-full sm:w-auto">
             Return to Workspace
           </Button>
         </div>
@@ -192,8 +191,8 @@ export default function TaskDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
-            <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-10">
-              <div className="flex justify-between items-start mb-8">
+            <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-6 md:p-10">
+              <div className="flex flex-col sm:flex-row justify-between items-start mb-8 gap-4">
                 <div className="space-y-4">
                   <div className="flex gap-2">
                     <Badge variant="outline" className="border-2 font-bold uppercase text-[9px] px-3 py-1">
@@ -209,16 +208,16 @@ export default function TaskDetailPage() {
                       {task.status}
                     </Badge>
                   </div>
-                  <h1 className="text-4xl font-bold font-headline leading-tight tracking-tight">{task.title}</h1>
+                  <h1 className="text-3xl md:text-4xl font-bold font-headline leading-tight tracking-tight">{task.title}</h1>
                 </div>
                 {isAdmin && task.status !== TASK_STATUS.ARCHIVED && (
-                   <Button variant="outline" onClick={handleArchive} className="rounded-xl border-2 font-bold gap-2">
+                   <Button variant="outline" onClick={handleArchive} className="rounded-xl border-2 font-bold gap-2 w-full sm:w-auto">
                      <Archive className="h-4 w-4" /> Archive Task
                    </Button>
                 )}
               </div>
               
-              <div className="mb-10 p-8 rounded-[2rem] bg-primary/5 border border-primary/10 space-y-4">
+              <div className="mb-10 p-6 md:p-8 rounded-[2rem] bg-primary/5 border border-primary/10 space-y-4">
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-primary">
                   <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Live Execution Health</span>
                   <span>{task.progress || 0}% Completion</span>
@@ -227,13 +226,13 @@ export default function TaskDetailPage() {
               </div>
 
               {isClient && task.status === TASK_STATUS.COMPLETED && !task.isApproved && (
-                <div className="p-8 rounded-[2rem] bg-green-50 border-2 border-green-200 mb-10 flex flex-col items-center text-center gap-4">
+                <div className="p-6 md:p-8 rounded-[2rem] bg-green-50 border-2 border-green-200 mb-10 flex flex-col items-center text-center gap-4">
                   <ShieldCheck className="h-12 w-12 text-green-600" />
                   <div>
                     <h3 className="text-xl font-bold text-green-900">Project Ready for Sign-off</h3>
                     <p className="text-green-700 mt-1 max-w-md">Your developer has finalized all requirements. Please provide your formal approval to conclude this project.</p>
                   </div>
-                  <Button onClick={handleSignOff} className="bg-green-600 hover:bg-green-700 h-14 rounded-2xl px-12 font-bold shadow-xl shadow-green-200 transition-all hover:scale-105">
+                  <Button onClick={handleSignOff} className="bg-green-600 hover:bg-green-700 h-14 rounded-2xl px-12 font-bold shadow-xl shadow-green-200 transition-all hover:scale-105 w-full sm:w-auto">
                     Approve & Sign-off Project
                   </Button>
                 </div>
@@ -244,21 +243,21 @@ export default function TaskDetailPage() {
                 <p className="text-lg text-muted-foreground leading-relaxed">{task.description}</p>
               </div>
               
-              <div className="mt-12 pt-8 border-t grid grid-cols-2 sm:grid-cols-4 gap-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                <div className="space-y-1">
-                  <p className="text-primary/50 flex items-center gap-2"><Clock className="h-3 w-3" /> Initialized</p>
+              <div className="mt-12 pt-8 border-t grid grid-cols-1 sm:grid-cols-4 gap-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <div className="space-y-1 text-center sm:text-left">
+                  <p className="text-primary/50 flex items-center justify-center sm:justify-start gap-2"><Clock className="h-3 w-3" /> Initialized</p>
                   <p className="text-foreground">{task.createdAt ? format(new Date(task.createdAt), 'MMM dd, yyyy') : 'N/A'}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-primary/50 flex items-center gap-2"><UserIcon className="h-3 w-3" /> Lead Developer</p>
+                <div className="space-y-1 text-center sm:text-left">
+                  <p className="text-primary/50 flex items-center justify-center sm:justify-start gap-2"><UserIcon className="h-3 w-3" /> Lead Developer</p>
                   <p className="text-foreground truncate">{developer?.name || 'Assigned'}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-primary/50 flex items-center gap-2"><Sparkles className="h-3 w-3" /> Specialty</p>
+                <div className="space-y-1 text-center sm:text-left">
+                  <p className="text-primary/50 flex items-center justify-center sm:justify-start gap-2"><Sparkles className="h-3 w-3" /> Specialty</p>
                   <p className="text-foreground">{developer?.designation || 'Specialist'}</p>
                 </div>
-                <div className="space-y-1 text-right">
-                  <p className="text-primary/50 flex items-center justify-end gap-2"><CircleAlert className="h-3 w-3" /> Priority</p>
+                <div className="space-y-1 text-center sm:text-right">
+                  <p className="text-primary/50 flex items-center justify-center sm:justify-end gap-2"><CircleAlert className="h-3 w-3" /> Priority</p>
                   <Badge variant="outline" className="text-[8px] font-bold h-5 px-2">{task.priority}</Badge>
                 </div>
               </div>
@@ -266,17 +265,17 @@ export default function TaskDetailPage() {
 
             <Tabs defaultValue="suggestions" className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-16 bg-secondary/20 rounded-[1.5rem] p-1.5">
-                <TabsTrigger value="suggestions" className="rounded-2xl font-bold gap-2 text-sm">
+                <TabsTrigger value="suggestions" className="rounded-2xl font-bold gap-2 text-xs sm:text-sm">
                   <MessageSquare className="h-4 w-4" /> 
                   Collaboration Hub
                 </TabsTrigger>
-                <TabsTrigger value="history" className="rounded-2xl font-bold gap-2 text-sm">
+                <TabsTrigger value="history" className="rounded-2xl font-bold gap-2 text-xs sm:text-sm">
                   <History className="h-4 w-4" /> Audit Log
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="suggestions" className="pt-8 space-y-8">
                 {task.status !== TASK_STATUS.ARCHIVED && (
-                  <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
+                  <Card className="border-none shadow-sm bg-white rounded-[2rem] p-6 md:p-8">
                     <form onSubmit={handlePostMessage} className="space-y-4">
                       <Label className="text-[10px] font-bold uppercase tracking-widest ml-1 text-muted-foreground flex items-center gap-2">
                         {profile?.role === ROLES.CLIENT ? <Sparkles className="h-3 w-3 text-primary" /> : <MessageSquare className="h-3 w-3 text-primary" />}
@@ -289,7 +288,7 @@ export default function TaskDetailPage() {
                         className="min-h-[140px] rounded-2xl border-2 focus:border-primary/50 transition-all text-base bg-secondary/10"
                       />
                       <div className="flex justify-end">
-                        <Button type="submit" className="h-12 rounded-xl px-8 font-bold gap-3 shadow-lg shadow-primary/20 transition-all hover:scale-105">
+                        <Button type="submit" className="w-full sm:w-auto h-12 rounded-xl px-8 font-bold gap-3 shadow-lg shadow-primary/20 transition-all hover:scale-105">
                           <Send className="h-4 w-4" /> Send Update
                         </Button>
                       </div>
@@ -300,7 +299,7 @@ export default function TaskDetailPage() {
                 <div className="space-y-6">
                   {comments?.map((c) => (
                     <div key={c.id} className={cn(
-                      "flex gap-5 p-8 rounded-[2.5rem] border-2 transition-all relative overflow-hidden",
+                      "flex flex-col sm:flex-row gap-5 p-6 md:p-8 rounded-[2.5rem] border-2 transition-all relative overflow-hidden",
                       c.role === ROLES.CLIENT ? "bg-white border-primary/20 shadow-xl shadow-primary/5" : "bg-secondary/10 border-transparent"
                     )}>
                       {c.role === ROLES.CLIENT && (
@@ -308,7 +307,7 @@ export default function TaskDetailPage() {
                           <Sparkles className="h-3 w-3" /> Client Suggestion
                         </div>
                       )}
-                      <Avatar className="h-14 w-14 shrink-0 border-4 border-white shadow-sm">
+                      <Avatar className="h-14 w-14 shrink-0 border-4 border-white shadow-sm self-center sm:self-start">
                         <AvatarFallback className={cn(
                           "font-bold text-white text-lg",
                           c.role === ROLES.CLIENT ? "bg-primary" : "bg-blue-600"
@@ -317,7 +316,7 @@ export default function TaskDetailPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 space-y-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div className="flex items-center gap-3">
                             <span className="font-bold text-base tracking-tight">{c.userName}</span>
                             <Badge variant="outline" className="text-[8px] uppercase font-bold tracking-widest px-2 py-0 border-muted-foreground/30 h-5">
@@ -336,7 +335,7 @@ export default function TaskDetailPage() {
                     </div>
                   ))}
                   {(!comments || comments.length === 0) && (
-                    <div className="text-center py-16 text-muted-foreground italic bg-white/50 rounded-[2.5rem] border-2 border-dashed border-primary/20">
+                    <div className="text-center py-16 text-muted-foreground italic bg-white/50 rounded-[2.5rem] border-2 border-dashed border-primary/20 px-4">
                       No collaboration logs recorded for this task.
                     </div>
                   )}
