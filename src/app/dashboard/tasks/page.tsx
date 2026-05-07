@@ -91,7 +91,6 @@ function TasksContent() {
     const tasksRef = collection(firestore, 'tasks');
     
     if (profile.role === ROLES.ADMIN) return tasksRef;
-    // Developers and Clients fetch all non-archived to filter locally (Firestore OR limitations)
     return query(tasksRef, where('status', '!=', 'ARCHIVED'));
   }, [firestore, profile, user?.uid]);
 
@@ -139,8 +138,6 @@ function TasksContent() {
   };
 
   const filteredTasks = tasks?.filter(t => {
-    // CRITICAL: While profile is loading, don't show any tasks for non-admins 
-    // to avoid triggering unauthorized get requests and permission errors.
     if (!profile) return false;
 
     const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) || 
@@ -148,8 +145,8 @@ function TasksContent() {
     const matchesStatus = filterStatus === 'all' ? t.status !== TASK_STATUS.ARCHIVED : t.status === filterStatus;
     
     if (profile.role === ROLES.DEVELOPER) {
-      const isIndivAssign = t.assignedDeveloperId === user?.uid;
-      const isTeamAssign = t.assignedTeamId === profile.teamId;
+      const isIndivAssign = t.assignedDeveloperId && t.assignedDeveloperId === user?.uid;
+      const isTeamAssign = t.assignedTeamId && t.assignedTeamId === profile.teamId;
       if (!isIndivAssign && !isTeamAssign) return false;
     }
 

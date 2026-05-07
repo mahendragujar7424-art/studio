@@ -18,7 +18,8 @@ service cloud.firestore {
     }
 
     function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+      let path = /databases/$(database)/documents/users/$(userId);
+      return exists(path) ? get(path).data : null;
     }
 
     // Improved task membership check: Prioritize direct assignment to avoid unnecessary cross-doc reads
@@ -41,7 +42,8 @@ service cloud.firestore {
     }
 
     function isDeveloper() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'Developer';
+      let profile = getUserData(request.auth.uid);
+      return profile != null && profile.role == 'Developer';
     }
 
     // --- COLLECTION RULES ---
@@ -86,8 +88,8 @@ service cloud.firestore {
 
     match /tasks/{taskId}/comments/{commentId} {
       function getParentTask() {
-        let taskDoc = get(/databases/$(database)/documents/tasks/$(taskId));
-        return taskDoc != null ? taskDoc.data : null;
+        let path = /databases/$(database)/documents/tasks/$(taskId);
+        return exists(path) ? get(path).data : null;
       }
       
       function canAccessComments() {

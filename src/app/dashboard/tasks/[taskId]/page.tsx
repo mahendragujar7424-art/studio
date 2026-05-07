@@ -30,7 +30,8 @@ import {
   Sparkles,
   Archive,
   ShieldCheck,
-  Eye
+  Eye,
+  Lock
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
@@ -50,7 +51,7 @@ export default function TaskDetailPage() {
     return doc(firestore, 'tasks', taskId as string);
   }, [firestore, taskId, user]);
 
-  const { data: task, isLoading: isTaskLoading } = useDoc(taskRef);
+  const { data: task, isLoading: isTaskLoading, error: taskError } = useDoc(taskRef);
 
   const userRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -59,8 +60,6 @@ export default function TaskDetailPage() {
 
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
-  // AUTH GUARD: Only attempt to fetch comments if we've verified the user is authorized.
-  // This prevents Firestore Security Rule "permission denied" errors for unauthorized users.
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore || !taskId || !user || !task || !profile) return null;
 
@@ -81,7 +80,6 @@ export default function TaskDetailPage() {
 
   const { data: comments } = useCollection(commentsQuery);
 
-  // Fetch developer info if task exists
   const devRef = useMemoFirebase(() => {
     if (!firestore || !task?.assignedDeveloperId) return null;
     return doc(firestore, 'users', task.assignedDeveloperId);
@@ -157,6 +155,25 @@ export default function TaskDetailPage() {
     toast({ title: "Task Archived", description: "Project has been moved to archives." });
     router.push('/dashboard/tasks');
   };
+
+  if (taskError && (taskError as any).code === 'permission-denied') {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center h-[60vh] space-y-6 text-center">
+          <div className="h-20 w-20 bg-destructive/10 rounded-[2.5rem] flex items-center justify-center text-destructive">
+            <Lock className="h-10 w-10" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold font-headline">Access Denied</h1>
+            <p className="text-muted-foreground max-w-sm">You are not authorized to view this project record. It may belong to another team or client.</p>
+          </div>
+          <Button onClick={() => router.push('/dashboard/tasks')} variant="outline" className="rounded-xl px-8 h-12 font-bold border-2">
+            Return to Workspace
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (isTaskLoading || isProfileLoading) return <DashboardLayout><div className="animate-pulse h-96 bg-white rounded-3xl" /></DashboardLayout>;
   if (!task) return <DashboardLayout>Task not found.</DashboardLayout>;
