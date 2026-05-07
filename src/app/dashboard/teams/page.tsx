@@ -108,8 +108,8 @@ export default function TeamsPage() {
       setNewTeamName('');
       setNewTeamDesc('');
       setSelectedDeveloperIds([]);
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -149,12 +149,12 @@ export default function TeamsPage() {
       <div className="space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight">Team Orchestration</h1>
+            <h1 className="text-4xl font-bold font-headline tracking-tight text-primary">Team Orchestration</h1>
             <p className="text-muted-foreground mt-2 text-lg">Build engineering units and assign technical staff.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
+              <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20 w-full sm:w-auto">
                 <Plus className="h-5 w-5" /> Assemble Team
               </Button>
             </DialogTrigger>
@@ -176,7 +176,7 @@ export default function TeamsPage() {
                   <Label className="text-xs font-bold uppercase">Assign Developers</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full h-12 justify-between rounded-xl px-4 border-2 font-bold text-sm">
+                      <Button type="button" variant="outline" className="w-full h-12 justify-between rounded-xl px-4 border-2 font-bold text-sm">
                         {selectedDeveloperIds.length > 0 
                           ? `${selectedDeveloperIds.length} Developers Selected` 
                           : "Select Team Members"}
@@ -203,8 +203,8 @@ export default function TeamsPage() {
                             >
                               <Checkbox 
                                 checked={selectedDeveloperIds.includes(dev.id)} 
-                                onCheckedChange={() => {}} // Controlled by row click
-                                className="pointer-events-none"
+                                onCheckedChange={() => toggleDeveloperSelection(dev.id)}
+                                onClick={(e) => e.stopPropagation()}
                               />
                               <div className="flex flex-col">
                                 <span className="text-sm font-bold group-hover:text-primary transition-colors">{dev.name}</span>
@@ -220,7 +220,7 @@ export default function TeamsPage() {
                       {selectedDeveloperIds.length > 0 && (
                         <div className="p-3 bg-primary/5 border-t flex justify-between items-center">
                           <span className="text-[10px] font-bold text-primary uppercase">{selectedDeveloperIds.length} Selected</span>
-                          <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => setSelectedDeveloperIds([])}>Clear All</Button>
+                          <Button type="button" variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => setSelectedDeveloperIds([])}>Clear All</Button>
                         </div>
                       )}
                     </PopoverContent>
