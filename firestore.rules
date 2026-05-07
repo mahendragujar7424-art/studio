@@ -61,8 +61,8 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isSignedIn();
-      // Allow directory listing for all authenticated members to enable name resolution across the dashboard
-      allow list: if isSignedIn();
+      // Restricted listing to Admins only to prevent global directory exposure
+      allow list: if isAdmin();
       allow create: if isAdmin() || (
         isOwner(userId) && 
         request.resource.data.email == 'admin@crm.com' && 

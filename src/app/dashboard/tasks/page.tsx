@@ -39,6 +39,27 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'next/navigation';
 
+/**
+ * Component to resolve and display developer name/info for individual task cards.
+ * Avoids permission-denied errors by using individual doc fetches for non-admins.
+ */
+function TaskDeveloperInfo({ developerId }: { developerId: string }) {
+  const firestore = useFirestore();
+  const devRef = useMemoFirebase(() => {
+    if (!firestore || !developerId) return null;
+    return doc(firestore, 'users', developerId);
+  }, [firestore, developerId]);
+
+  const { data: dev } = useDoc(devRef);
+
+  return (
+    <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase">
+      <UserIcon className="h-3.5 w-3.5 text-primary" />
+      {dev?.name || 'Assigned'}
+    </div>
+  );
+}
+
 function TasksContent() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -68,7 +89,7 @@ function TasksContent() {
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
   const developersQuery = useMemoFirebase(() => {
-    // Only fetch developer list if user is an Admin
+    // Only fetch developer list if user is an Admin (to provision new tasks)
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
   }, [firestore, profile?.role]);
@@ -80,9 +101,9 @@ function TasksContent() {
   }, [firestore, profile?.role]);
 
   const teamsQuery = useMemoFirebase(() => {
-    if (!firestore || profile?.role !== ROLES.ADMIN) return null;
+    if (!firestore || !profile) return null;
     return collection(firestore, 'teams');
-  }, [firestore, profile?.role]);
+  }, [firestore, profile]);
 
   const { data: developers } = useCollection(developersQuery);
   const { data: clients } = useCollection(clientsQuery);
@@ -92,9 +113,12 @@ function TasksContent() {
     if (!firestore || !profile || !user?.uid) return null;
     const tasksRef = collection(firestore, 'tasks');
     
-    // Admins see everything, clients/devs are filtered by rules but we query for all non-archived for UX
+    // Role-based filtering handled by security rules, but queries provide explicit filters for UX
     if (profile.role === ROLES.ADMIN) return tasksRef;
-    return query(tasksRef, where('status', '!=', 'ARCHIVED'));
+    if (profile.role === ROLES.DEVELOPER) return query(tasksRef, where('status', '!=', 'ARCHIVED'));
+    if (profile.role === ROLES.CLIENT) return query(tasksRef, where('assignedClientId', '==', user.uid));
+    
+    return null;
   }, [firestore, profile, user?.uid]);
 
   const { data: tasks, isLoading: isTasksFetching } = useCollection(tasksQuery);
@@ -147,14 +171,11 @@ function TasksContent() {
                           t.description.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === 'all' ? t.status !== TASK_STATUS.ARCHIVED : t.status === filterStatus;
     
+    // Explicit client-side filtering logic for developers to handle team/indiv assignments
     if (profile.role === ROLES.DEVELOPER) {
       const isIndivAssign = t.assignedDeveloperId && t.assignedDeveloperId === user?.uid;
       const isTeamAssign = t.assignedTeamId && t.assignedTeamId === profile.teamId;
       if (!isIndivAssign && !isTeamAssign) return false;
-    }
-
-    if (profile.role === ROLES.CLIENT) {
-      if (t.assignedClientId !== user?.uid) return false;
     }
 
     return matchesSearch && matchesStatus;
@@ -345,7 +366,7 @@ function TasksContent() {
                     task.assignedTeamId ? 
                     (teams?.find(t => t.id === task.assignedTeamId)?.name || 'Team') : 
                     (developers?.find(d => d.id === task.assignedDeveloperId)?.name || 'N/A')
-                  ) : 'Assigned'}
+                  ) : task.assignedTeamId ? (teams?.find(t => t.id === task.assignedTeamId)?.name || 'Team') : <TaskDeveloperInfo developerId={task.assignedDeveloperId} />}
                 </div>
               </div>
               <Button asChild variant="ghost" className="w-full rounded-xl font-bold hover:bg-primary/5">

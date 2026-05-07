@@ -25,6 +25,33 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
+/**
+ * Component to resolve and display developer name/info without listing the collection.
+ * This adheres to restricted security rules while providing required dashboard visibility.
+ */
+function LeadDeveloperInfo({ developerId }: { developerId: string }) {
+  const firestore = useFirestore();
+  const devRef = useMemoFirebase(() => {
+    if (!firestore || !developerId) return null;
+    return doc(firestore, 'users', developerId);
+  }, [firestore, developerId]);
+
+  const { data: dev } = useDoc(devRef);
+
+  if (!developerId) return (
+    <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+      <UserIcon className="h-3 w-3" /> Unassigned
+    </span>
+  );
+
+  return (
+    <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+      <UserIcon className="h-3 w-3" /> {dev?.name || 'Loading...'} 
+      {dev?.designation && ` • ${dev.designation}`}
+    </span>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -36,14 +63,14 @@ export default function DashboardPage() {
 
   const { data: profile } = useDoc(userRef);
 
-  // Fetch all developers to resolve names on dashboard - gated by profile presence
+  // Fetch all developers ONLY for Admins to prevent permission errors for Clients/Devs
   const devsQuery = useMemoFirebase(() => {
-    if (!firestore || !profile) return null;
+    if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
-  }, [firestore, profile]);
+  }, [firestore, profile?.role]);
   const { data: developers } = useCollection(devsQuery);
 
-  // Fetch all teams to resolve team assignments - gated by profile presence
+  // Teams are viewable by all members to see project assignments
   const teamsQuery = useMemoFirebase(() => {
     if (!firestore || !profile) return null;
     return collection(firestore, 'teams');
@@ -174,7 +201,6 @@ export default function DashboardPage() {
             <CardContent className="p-8 pt-0">
               <div className="space-y-6">
                 {myTasks?.slice(0, 5).map((task) => {
-                  const dev = developers?.find(d => d.id === task.assignedDeveloperId);
                   const team = teams?.find(t => t.id === task.assignedTeamId);
                   
                   return (
@@ -196,10 +222,7 @@ export default function DashboardPage() {
                                     <Briefcase className="h-3 w-3" /> {team?.name || 'Production Team'}
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
-                                    <UserIcon className="h-3 w-3" /> {dev?.name || 'Lead Developer'} 
-                                    {dev?.designation && ` • ${dev.designation}`}
-                                  </span>
+                                  <LeadDeveloperInfo developerId={task.assignedDeveloperId} />
                                 )}
                               </div>
                             </div>
