@@ -91,6 +91,11 @@ export default function TeamsPage() {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
 
+    if (!newTeamName.trim()) {
+      toast({ title: "Name Required", description: "Please provide a team identity.", variant: "destructive" });
+      return;
+    }
+
     if (selectedDeveloperIds.length === 0) {
       toast({ title: "Assignment Required", description: "Please select at least one developer.", variant: "destructive" });
       return;
@@ -142,7 +147,8 @@ export default function TeamsPage() {
 
   const filteredDevelopers = developers?.filter(dev => 
     dev.name?.toLowerCase().includes(devSearch.toLowerCase()) || 
-    dev.email?.toLowerCase().includes(devSearch.toLowerCase())
+    dev.email?.toLowerCase().includes(devSearch.toLowerCase()) ||
+    dev.designation?.toLowerCase().includes(devSearch.toLowerCase())
   );
 
   if (profile && profile.role !== ROLES.ADMIN) {
@@ -171,7 +177,7 @@ export default function TeamsPage() {
                 <Plus className="h-5 w-5" /> Assemble Team
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8 border-none shadow-2xl">
+            <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8 border-none shadow-2xl overflow-hidden">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold font-headline">New Team Formation</DialogTitle>
               </DialogHeader>
@@ -200,11 +206,11 @@ export default function TeamsPage() {
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[430px] p-0 rounded-2xl overflow-hidden shadow-2xl border-none z-[100]" align="start">
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 rounded-2xl overflow-hidden shadow-2xl border-none z-[100]" align="start">
                       <div className="p-4 border-b bg-secondary/10 relative">
                         <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
-                          placeholder="Search developers by name..." 
+                          placeholder="Search developers..." 
                           value={devSearch}
                           onChange={e => setDevSearch(e.target.value)}
                           className="h-10 pl-10 rounded-lg border-none bg-white shadow-sm"
@@ -221,15 +227,13 @@ export default function TeamsPage() {
                                   "flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer group",
                                   isSelected ? "bg-primary/5" : "hover:bg-secondary/20"
                                 )} 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  toggleDeveloperSelection(dev.id);
-                                }}
+                                onClick={() => toggleDeveloperSelection(dev.id)}
                               >
                                 <div className="flex items-center gap-3">
                                   <Checkbox 
                                     checked={isSelected} 
                                     onCheckedChange={() => toggleDeveloperSelection(dev.id)}
+                                    // Stop propagation to prevent double-toggling
                                     onClick={(e) => e.stopPropagation()}
                                   />
                                   <div className="flex flex-col">
@@ -242,13 +246,15 @@ export default function TeamsPage() {
                             );
                           })}
                           {(!filteredDevelopers || filteredDevelopers.length === 0) && !isDevsLoading && (
-                            <p className="text-center py-10 text-xs text-muted-foreground italic">No technical staff available.</p>
+                            <div className="text-center py-10">
+                              <p className="text-xs text-muted-foreground italic">No technical staff found.</p>
+                            </div>
                           )}
                         </div>
                       </ScrollArea>
                       <div className="p-3 bg-primary/5 border-t flex justify-between items-center">
                         <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{selectedDeveloperIds.length} Selected</span>
-                        <Button type="button" variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => setSelectedDeveloperIds([])}>Reset Selection</Button>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => setSelectedDeveloperIds([])}>Reset</Button>
                       </div>
                     </PopoverContent>
                   </Popover>
@@ -266,7 +272,7 @@ export default function TeamsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {teams?.map((team) => {
-            // "Populate" logic: Resolve names and designations from the global developers list
+            // Resolve names and designations from the global developers list
             const teamDevs = developers?.filter(d => team.developerIds?.includes(d.id)) || [];
             
             return (
