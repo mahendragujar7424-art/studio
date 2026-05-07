@@ -5,7 +5,6 @@ import * as React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, addDoc, doc } from 'firebase/firestore';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { ROLES, TASK_STATUS } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,9 +46,10 @@ export default function WorkUpdatesPage() {
 
   // Fetch updates based on role
   const updatesQuery = useMemoFirebase(() => {
-    if (!firestore || !profile || !user?.uid) return null;
+    if (!firestore || !profile?.role || !user?.uid) return null;
     const updatesRef = collection(firestore, 'work_updates');
     
+    // For developers and clients, Firestore rules require a direct equality filter on the query
     if (profile.role === ROLES.ADMIN) {
       return query(updatesRef, orderBy('timestamp', 'desc'));
     }
@@ -63,7 +63,7 @@ export default function WorkUpdatesPage() {
     }
 
     return null;
-  }, [firestore, profile, user?.uid]);
+  }, [firestore, profile?.role, user?.uid]);
 
   const { data: updates, isLoading: isUpdatesLoading } = useCollection(updatesQuery);
 
@@ -96,7 +96,6 @@ export default function WorkUpdatesPage() {
   };
 
   const isDeveloper = profile?.role === ROLES.DEVELOPER;
-  const isClient = profile?.role === ROLES.CLIENT;
 
   return (
     <DashboardLayout>

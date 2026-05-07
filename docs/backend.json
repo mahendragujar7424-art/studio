@@ -134,6 +134,7 @@
         "projectTitle": { "type": "string" },
         "developerId": { "type": "string" },
         "developerName": { "type": "string" },
+        "clientId": { "type": "string", "description": "The ID of the client who owns the associated project." },
         "description": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },

@@ -43,6 +43,11 @@ service cloud.firestore {
       return profile != null && profile.role == 'Developer';
     }
 
+    function isClient() {
+      let profile = getUserData(request.auth.uid);
+      return profile != null && profile.role == 'Client';
+    }
+
     // --- COLLECTION RULES ---
 
     match /users/{userId} {
@@ -100,13 +105,20 @@ service cloud.firestore {
     }
 
     match /work_updates/{updateId} {
-      function getRelatedTask(taskId) {
-        let path = /databases/$(database)/documents/tasks/$(taskId);
-        return exists(path) ? get(path).data : null;
-      }
+      allow get: if isSignedIn() && (
+        isAdmin() || 
+        resource.data.developerId == request.auth.uid || 
+        resource.data.clientId == request.auth.uid
+      );
+      
+      // Allow list if the query is properly filtered for the user's role
+      allow list: if isSignedIn() && (
+        isAdmin() || 
+        (isDeveloper() && request.query.filters.developerId == request.auth.uid) ||
+        (isClient() && request.query.filters.clientId == request.auth.uid)
+      );
 
-      allow list, get: if isSignedIn(); // Queries must handle specific filtering
-      allow create: if isSignedIn() && isDeveloper() && isTaskMember(getRelatedTask(request.resource.data.projectId));
+      allow create: if isSignedIn() && isDeveloper();
       allow update, delete: if isAdmin();
     }
   }
