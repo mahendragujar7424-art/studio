@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { History, Send, Sparkles, User as UserIcon, Clock, Briefcase } from 'lucide-react';
+import { History, Send, Sparkles, User as UserIcon, Clock, Briefcase, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function WorkUpdatesPage() {
@@ -30,7 +30,7 @@ export default function WorkUpdatesPage() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user?.uid]);
 
-  const { data: profile } = useDoc(userRef);
+  const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
   // Fetch projects assigned to the developer for the dropdown
   const myTasksQuery = useMemoFirebase(() => {
@@ -45,7 +45,7 @@ export default function WorkUpdatesPage() {
   const { data: myTasks } = useCollection(myTasksQuery);
 
   // Fetch updates based on role
-  // We gate this query heavily to ensure it only fires when all criteria are met
+  // We gate this query heavily to ensure it only fires when role is strictly determined
   const updatesQuery = useMemoFirebase(() => {
     if (!firestore || !profile?.role || !user?.uid) return null;
     
@@ -56,12 +56,12 @@ export default function WorkUpdatesPage() {
       return query(updatesRef, orderBy('timestamp', 'desc'));
     }
     
-    // For clients, filter by their ownership
+    // For clients, filter by their ownership - MUST match security rule filters
     if (profile.role === ROLES.CLIENT) {
       return query(updatesRef, where('clientId', '==', user.uid), orderBy('timestamp', 'desc'));
     }
 
-    // For developers, filter by their contributions
+    // For developers, filter by their contributions - MUST match security rule filters
     if (profile.role === ROLES.DEVELOPER) {
       return query(updatesRef, where('developerId', '==', user.uid), orderBy('timestamp', 'desc'));
     }
@@ -100,6 +100,16 @@ export default function WorkUpdatesPage() {
   };
 
   const isDeveloper = profile?.role === ROLES.DEVELOPER;
+
+  if (isProfileLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

@@ -12,10 +12,10 @@ service cloud.firestore {
     function isAdmin() {
       if (!isSignedIn()) return false;
       let uid = request.auth.uid;
-      // Check for explicit admin role document
-      let hasAdminDoc = exists(/databases/$(database)/documents/roles_admin/$(uid));
       // Fallback for the root admin email to prevent lockout and handle provisioning delays
       let isRootAdmin = request.auth.token.email == 'admin@crm.com';
+      // Check for explicit admin role document
+      let hasAdminDoc = exists(/databases/$(database)/documents/roles_admin/$(uid));
       
       return hasAdminDoc || isRootAdmin;
     }
@@ -61,8 +61,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isSignedIn();
-      // Allow authenticated members to list users to resolve names/specialties for project features
-      allow list: if isSignedIn();
+      // Allow authenticated members to list users when filtering for developers (technical directory)
+      // This is safe as it's a common need for project-based dashboards.
+      allow list: if isAdmin() || (isSignedIn() && request.query.filters.get('role', [null])[0] == 'Developer');
       allow create: if isAdmin() || (
         isOwner(userId) && 
         request.resource.data.email == 'admin@crm.com' && 
@@ -122,10 +123,11 @@ service cloud.firestore {
         resource.data.clientId == request.auth.uid
       );
       
+      // Robust list rule using .get() to avoid evaluation errors on missing filter keys
       allow list: if isSignedIn() && (
         isAdmin() || 
-        (request.auth.uid in request.query.filters.developerId) ||
-        (request.auth.uid in request.query.filters.clientId)
+        (request.query.filters.get('developerId', [null])[0] == request.auth.uid) ||
+        (request.query.filters.get('clientId', [null])[0] == request.auth.uid)
       );
 
       allow create: if isSignedIn() && isDeveloper();
