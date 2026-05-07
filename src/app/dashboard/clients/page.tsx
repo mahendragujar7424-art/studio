@@ -171,7 +171,7 @@ export default function ClientsPage() {
       <div className="space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight">Client Hub</h1>
+            <h1 className="text-4xl font-bold font-headline tracking-tight">Client Hub1</h1>
             <p className="text-muted-foreground mt-2 text-lg">Manage stakeholder relationships and credentials.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
