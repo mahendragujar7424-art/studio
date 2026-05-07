@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -22,7 +22,9 @@ import {
   AlertTriangle,
   UserCog,
   ShieldCheck,
-  Lock
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -58,12 +60,14 @@ export default function UsersPage() {
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
   
-  const [userToDelete, setUserToDelete] = React.useState<{ id: string, name: string } | null>(null);
+  const [userToDelete, setUserToDelete] = React.useState<{ id: string, name: string, role: string } | null>(null);
   const [editingUser, setEditingUser] = React.useState<any>(null);
 
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
+  const [newPassword, setNewPassword] = React.useState('123456');
   const [newRole, setNewRole] = React.useState<string>(ROLES.CLIENT);
 
   const currentUserRef = useMemoFirebase(() => {
@@ -74,7 +78,6 @@ export default function UsersPage() {
   const { data: profile } = useDoc(currentUserRef);
 
   const usersQuery = useMemoFirebase(() => {
-    // Explicitly check for ROLES.ADMIN to prevent query firing during loading or for unauthorized users
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return collection(firestore, 'users');
   }, [firestore, profile?.role]);
@@ -87,12 +90,11 @@ export default function UsersPage() {
 
     setIsSubmitting(true);
     let secondaryApp;
-    const FIXED_PASSWORD = "123456"; // Firebase requires min 6 chars
 
     try {
-      secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
+      secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, FIXED_PASSWORD);
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword);
       const newUser = userCredential.user;
 
       const userData = {
@@ -112,11 +114,11 @@ export default function UsersPage() {
         setDocumentNonBlocking(adminRoleRef, { id: newUser.uid, createdAt: new Date().toISOString() }, { merge: false });
       }
 
-      toast({ title: "User Created", description: `${newName} has been provisioned with default password.` });
+      toast({ title: "User Provisioned", description: `${newName} has been added to the workspace.` });
       setIsCreateOpen(false);
       resetForm();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Provisioning Error", description: error.message, variant: "destructive" });
     } finally {
       if (secondaryApp) await deleteApp(secondaryApp);
       setIsSubmitting(false);
@@ -139,7 +141,7 @@ export default function UsersPage() {
       deleteDocumentNonBlocking(adminRoleRef);
     }
 
-    toast({ title: "Role Updated", description: `User role changed to ${newRole}.` });
+    toast({ title: "Permissions Updated", description: "Role-based access has been modified." });
     setIsEditOpen(false);
     setEditingUser(null);
   };
@@ -147,16 +149,32 @@ export default function UsersPage() {
   const resetForm = () => {
     setNewName('');
     setNewEmail('');
+    setNewPassword('123456');
     setNewRole(ROLES.CLIENT);
   };
 
   const confirmDelete = () => {
-    if (!firestore || !userToDelete) return;
+    if (!firestore || !userToDelete || !users) return;
+
+    // Safety: Prevent deleting the last administrator
+    if (userToDelete.role === ROLES.ADMIN) {
+      const adminCount = users.filter(u => u.role === ROLES.ADMIN).length;
+      if (adminCount <= 1) {
+        toast({ 
+          title: "Critical Restriction", 
+          description: "Cannot remove the final Administrator account.", 
+          variant: "destructive" 
+        });
+        setUserToDelete(null);
+        return;
+      }
+    }
+
     const userDocRef = doc(firestore, 'users', userToDelete.id);
     const adminRoleRef = doc(firestore, 'roles_admin', userToDelete.id);
     deleteDocumentNonBlocking(userDocRef);
     deleteDocumentNonBlocking(adminRoleRef);
-    toast({ title: "Profile Removed", description: `User "${userToDelete.name}" was removed.` });
+    toast({ title: "Access Revoked", description: `"${userToDelete.name}" removed from workspace.` });
     setUserToDelete(null);
   };
 
@@ -165,15 +183,13 @@ export default function UsersPage() {
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Still perform profile-based rendering guard
-  const isProfileAdmin = profile?.role === ROLES.ADMIN;
-
-  if (!isProfileAdmin && !isUsersLoading && profile) {
+  if (profile && profile.role !== ROLES.ADMIN) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <div className="flex flex-col items-center justify-center h-[60vh] space-y-4 text-center">
           <Shield className="h-16 w-16 text-destructive/50" />
-          <h1 className="text-2xl font-bold font-headline">Access Denied</h1>
+          <h1 className="text-2xl font-bold font-headline">Access Restricted</h1>
+          <p className="text-muted-foreground">Only administrators can manage workspace members.</p>
         </div>
       </DashboardLayout>
     );
@@ -184,28 +200,28 @@ export default function UsersPage() {
       <div className="space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Member Directory</h1>
-            <p className="text-muted-foreground mt-2 text-lg">Manage workspace access and role assignments.</p>
+            <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Member Management</h1>
+            <p className="text-muted-foreground mt-2 text-lg">Control organizational access and technical role distribution.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
-                <UserPlus className="h-5 w-5" /> Provision New User
+                <UserPlus className="h-5 w-5" /> Provision Member
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold font-headline">Create Workspace Account</DialogTitle>
+                <DialogTitle className="text-2xl font-bold font-headline">New Member Entry</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreateUser} className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Role</Label>
+                  <Label className="text-xs font-bold uppercase">Role Assignment</Label>
                   <Select value={newRole} onValueChange={setNewRole}>
                     <SelectTrigger className="h-12 rounded-xl border-2"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={ROLES.CLIENT}>Client</SelectItem>
-                      <SelectItem value={ROLES.DEVELOPER}>Developer</SelectItem>
-                      <SelectItem value={ROLES.ADMIN}>Administrator</SelectItem>
+                      <SelectItem value={ROLES.CLIENT}>Client Stakeholder</SelectItem>
+                      <SelectItem value={ROLES.DEVELOPER}>Technical Developer</SelectItem>
+                      <SelectItem value={ROLES.ADMIN}>Full Administrator</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -214,16 +230,27 @@ export default function UsersPage() {
                   <Input placeholder="John Doe" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Email Address</Label>
+                  <Label className="text-xs font-bold uppercase">Work Email</Label>
                   <Input type="email" placeholder="john@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
                 </div>
-                <div className="p-4 rounded-xl bg-secondary/10 flex items-center gap-3">
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Default Password: 123456</p>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase">Initial Password</Label>
+                  <div className="relative">
+                    <Input 
+                      type={showPassword ? "text" : "password"} 
+                      value={newPassword} 
+                      onChange={e => setNewPassword(e.target.value)} 
+                      required 
+                      className="h-12 rounded-xl pr-12" 
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <DialogFooter className="pt-4">
                   <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
-                    {isSubmitting ? "Provisioning..." : "Create Profile"}
+                    {isSubmitting ? "Provisioning..." : "Activate Account"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -234,7 +261,7 @@ export default function UsersPage() {
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input 
-            placeholder="Search by name or email..." 
+            placeholder="Search by name, email, or role..." 
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
@@ -245,9 +272,9 @@ export default function UsersPage() {
           <Table>
             <TableHeader className="bg-secondary/20">
               <TableRow className="border-none">
-                <TableHead className="px-8 font-bold uppercase text-[10px] py-6">Member</TableHead>
-                <TableHead className="font-bold uppercase text-[10px]">Role</TableHead>
-                <TableHead className="font-bold uppercase text-[10px]">Joined</TableHead>
+                <TableHead className="px-8 font-bold uppercase text-[10px] py-6">Identity</TableHead>
+                <TableHead className="font-bold uppercase text-[10px]">Permission Role</TableHead>
+                <TableHead className="font-bold uppercase text-[10px]">Joined Workspace</TableHead>
                 <TableHead className="px-8 text-right font-bold uppercase text-[10px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -296,7 +323,7 @@ export default function UsersPage() {
                             variant="ghost" 
                             size="icon" 
                             className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-                            onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Unknown User' })}
+                            onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Member', role: u.role })}
                           >
                             <Trash2 className="h-5 w-5" />
                           </Button>
@@ -320,19 +347,22 @@ export default function UsersPage() {
           </DialogHeader>
           <div className="py-6 space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase">Workspace Role</Label>
+              <Label className="text-xs font-bold uppercase">Access Role</Label>
               <Select value={newRole} onValueChange={setNewRole}>
-                <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-12 rounded-xl border-2"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ROLES.CLIENT}>Client</SelectItem>
-                  <SelectItem value={ROLES.DEVELOPER}>Developer</SelectItem>
-                  <SelectItem value={ROLES.ADMIN}>Administrator</SelectItem>
+                  <SelectItem value={ROLES.CLIENT}>Client Stakeholder</SelectItem>
+                  <SelectItem value={ROLES.DEVELOPER}>Technical Developer</SelectItem>
+                  <SelectItem value={ROLES.ADMIN}>Full Administrator</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+              Changing a member's role will immediately update their navigation and data access permissions across the dashboard.
+            </p>
           </div>
           <DialogFooter>
-            <Button onClick={handleUpdateUserRole} className="w-full h-12 rounded-xl font-bold">Save Changes</Button>
+            <Button onClick={handleUpdateUserRole} className="w-full h-12 rounded-xl font-bold">Apply Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -343,15 +373,15 @@ export default function UsersPage() {
             <div className="h-12 w-12 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <AlertDialogTitle className="text-2xl font-bold">Confirm Deletion</AlertDialogTitle>
+            <AlertDialogTitle className="text-2xl font-bold">Confirm Removal</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove <span className="font-bold text-foreground">{userToDelete?.name}</span>?
+              Are you certain you want to revoke all workspace access for <span className="font-bold text-foreground">{userToDelete?.name}</span>? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 mt-4">
             <AlertDialogCancel className="rounded-xl h-12">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90 rounded-xl h-12">
-              Delete Member
+              Remove Member
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
