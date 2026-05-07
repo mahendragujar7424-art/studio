@@ -2,8 +2,8 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/navigation';
 import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   LayoutDashboard, 
   CheckSquare, 
@@ -14,7 +14,7 @@ import {
   User as UserIcon,
   Briefcase,
   UserCheck,
-  UserGroup
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -23,18 +23,19 @@ import { getAuth, signOut } from 'firebase/auth';
 import { ROLES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import LinkComponent from 'next/link';
 
 interface SidebarLinkProps {
   href: string;
   icon: React.ElementType;
   children: React.ReactNode;
   active?: boolean;
+  onClick?: () => void;
 }
 
-const SidebarLink = ({ href, icon: Icon, children, active }: SidebarLinkProps) => (
-  <LinkComponent
+const SidebarLink = ({ href, icon: Icon, children, active, onClick }: SidebarLinkProps) => (
+  <Link
     href={href}
+    onClick={onClick}
     className={cn(
       "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
       active 
@@ -44,7 +45,7 @@ const SidebarLink = ({ href, icon: Icon, children, active }: SidebarLinkProps) =
   >
     <Icon className={cn("h-5 w-5", active ? "" : "group-hover:scale-110 transition-transform")} />
     <span className="font-medium">{children}</span>
-  </LinkComponent>
+  </Link>
 );
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -73,12 +74,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
-  if (isUserLoading || (user && isProfileLoading)) {
+  // Improved loading state: only show full screen on initial auth check
+  // Once user is known, we render the layout and show internal skeletons if needed
+  if (isUserLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="animate-pulse space-y-4 text-center">
-          <div className="h-12 w-12 bg-primary/20 rounded-full mx-auto" />
-          <p className="text-muted-foreground font-medium">Loading Workspace...</p>
+          <div className="h-16 w-16 bg-primary/20 rounded-3xl mx-auto flex items-center justify-center font-bold text-2xl text-primary/40">C</div>
+          <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Initializing...</p>
         </div>
       </div>
     );
@@ -102,23 +105,30 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-[40] md:hidden backdrop-blur-sm"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+      {/* Mobile Overlay */}
+      <div 
+        className={cn(
+          "fixed inset-0 bg-black/60 z-[40] md:hidden backdrop-blur-sm transition-opacity duration-300",
+          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setIsSidebarOpen(false)}
+      />
 
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-[50] w-72 bg-white border-r transition-transform duration-300 ease-in-out md:translate-x-0",
+        "fixed inset-y-0 left-0 z-[50] w-72 bg-white border-r transition-transform duration-300 ease-in-out md:translate-x-0 shadow-2xl md:shadow-none",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full p-6">
-          <div className="flex items-center gap-3 mb-10 px-2">
-            <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground font-bold text-xl">
-              C
+          <div className="flex items-center justify-between mb-10 px-2">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground font-bold text-xl shadow-lg shadow-primary/20">
+                C
+              </div>
+              <span className="text-xl font-bold tracking-tight">CloudCRM</span>
             </div>
-            <span className="text-xl font-bold tracking-tight">CloudCRM</span>
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(false)}>
+              <X className="h-5 w-5" />
+            </Button>
           </div>
 
           <nav className="flex-1 space-y-2">
@@ -128,6 +138,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 href={link.href} 
                 icon={link.icon}
                 active={pathname === link.href}
+                onClick={() => setIsSidebarOpen(false)}
               >
                 {link.name}
               </SidebarLink>
@@ -143,12 +154,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </Avatar>
               <div className="flex flex-col min-w-0">
                 <span className="text-sm font-bold truncate">{profile?.name || user?.email}</span>
-                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">{role}</span>
+                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">{role || 'Loading...'}</span>
               </div>
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-xl px-4 py-3"
+              className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-xl px-4 py-3 transition-colors"
               onClick={handleSignOut}
             >
               <LogOut className="h-5 w-5" />
@@ -166,7 +177,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <span className="text-lg font-bold">CloudCRM</span>
         </header>
 
-        <div className="p-6 md:p-10 max-w-7xl mx-auto w-full flex-1">
+        <div className={cn(
+          "p-6 md:p-10 max-w-7xl mx-auto w-full flex-1 transition-all duration-500",
+          isProfileLoading ? "opacity-50 blur-[2px]" : "opacity-100 blur-0"
+        )}>
           {children}
         </div>
       </main>
