@@ -15,8 +15,10 @@ import {
   TrendingUp,
   Activity,
   ArrowUpRight,
-  Archive,
-  MessageSquare
+  MessageSquare,
+  User as UserIcon,
+  Briefcase,
+  Sparkles
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +35,20 @@ export default function DashboardPage() {
   }, [firestore, user?.uid]);
 
   const { data: profile } = useDoc(userRef);
+
+  // Fetch all developers to resolve names on dashboard
+  const devsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
+  }, [firestore]);
+  const { data: developers } = useCollection(devsQuery);
+
+  // Fetch all teams to resolve team assignments
+  const teamsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'teams');
+  }, [firestore]);
+  const { data: teams } = useCollection(teamsQuery);
 
   const tasksQuery = useMemoFirebase(() => {
     if (!firestore || !profile || !user?.uid) return null;
@@ -61,9 +77,22 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-10">
-        <div>
-          <h1 className="text-4xl font-bold font-headline tracking-tight">Workspace Overview</h1>
-          <p className="text-muted-foreground mt-2 text-lg">Welcome back, {profile?.name || 'User'}. Here's the live project health.</p>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold font-headline tracking-tight">
+              {profile?.role === ROLES.CLIENT ? 'Project Delivery Hub' : 'Workspace Overview'}
+            </h1>
+            <p className="text-muted-foreground mt-2 text-lg">
+              {profile?.role === ROLES.CLIENT 
+                ? `Real-time visibility into your active projects, ${profile?.name}.`
+                : `Welcome back, ${profile?.name || 'User'}. Here's the live project health.`}
+            </p>
+          </div>
+          {profile?.role === ROLES.CLIENT && (
+            <Badge variant="outline" className="h-10 px-6 rounded-full border-2 font-bold gap-2 text-primary bg-primary/5 uppercase tracking-wider text-[10px]">
+              <Sparkles className="h-4 w-4" /> Live Tracking Enabled
+            </Badge>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -134,41 +163,65 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xl font-bold font-headline">Live Project Feed</CardTitle>
-                  <CardDescription>Real-time status of your active deliveries.</CardDescription>
+                  <CardDescription>
+                    {profile?.role === ROLES.CLIENT 
+                      ? 'Status of technical features currently in development.'
+                      : 'Real-time status of your active deliveries.'}
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-8 pt-0">
               <div className="space-y-6">
-                {myTasks?.slice(0, 5).map((task) => (
-                  <Link href={`/dashboard/tasks/${task.id}`} key={task.id} className="block group">
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/30 border border-transparent hover:border-primary/20 transition-all">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className={cn(
-                          "h-10 w-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm",
-                          task.status === TASK_STATUS.COMPLETED ? "bg-green-500" : task.status === TASK_STATUS.UNDER_REVIEW ? "bg-orange-500" : "bg-blue-500"
-                        )}>
-                          {task.title.charAt(0)}
+                {myTasks?.slice(0, 5).map((task) => {
+                  const dev = developers?.find(d => d.id === task.assignedDeveloperId);
+                  const team = teams?.find(t => t.id === task.assignedTeamId);
+                  
+                  return (
+                    <Link href={`/dashboard/tasks/${task.id}`} key={task.id} className="block group">
+                      <div className="flex flex-col gap-4 p-5 rounded-2xl bg-secondary/30 border border-transparent hover:border-primary/20 transition-all">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className={cn(
+                              "h-10 w-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm",
+                              task.status === TASK_STATUS.COMPLETED ? "bg-green-500" : task.status === TASK_STATUS.UNDER_REVIEW ? "bg-orange-500" : "bg-blue-500"
+                            )}>
+                              {task.title.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-sm group-hover:text-primary transition-colors truncate">{task.title}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {task.assignedTeamId ? (
+                                  <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                                    <Briefcase className="h-3 w-3" /> {team?.name || 'Production Team'}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                                    <UserIcon className="h-3 w-3" /> {dev?.name || 'Lead Developer'} 
+                                    {dev?.designation && ` • ${dev.designation}`}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="rounded-full px-3 py-1 font-bold text-[10px] uppercase border-2 hidden sm:inline-flex bg-white">
+                            {task.status}
+                          </Badge>
+                          <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
                         </div>
-                        <div className="flex-1 space-y-2">
+                        <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <p className="font-bold text-sm group-hover:text-primary transition-colors">{task.title}</p>
-                            <span className="text-[10px] font-bold text-muted-foreground">{task.progress || 0}%</span>
+                             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Progress</span>
+                             <span className="text-[10px] font-bold text-primary">{task.progress || 0}%</span>
                           </div>
                           <Progress value={task.progress || 0} className="h-1.5" />
                         </div>
                       </div>
-                      <div className="ml-4 flex items-center gap-2">
-                        <Badge variant="outline" className="rounded-full px-3 py-1 font-bold text-[10px] uppercase border-2 hidden sm:inline-flex">
-                          {task.status}
-                        </Badge>
-                        <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
                 {(!myTasks || myTasks.length === 0) && (
-                  <div className="text-center py-10 text-muted-foreground italic">
+                  <div className="text-center py-10 text-muted-foreground italic bg-secondary/10 rounded-2xl border-2 border-dashed">
                     No active projects at this time.
                   </div>
                 )}
@@ -189,7 +242,7 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {profile?.role === ROLES.CLIENT 
-                    ? "As a stakeholder, you can leave suggestions on any task. Your developer will be notified instantly."
+                    ? "As a stakeholder, you can leave suggestions on any task. Your developer will be notified instantly via the Project Workspace."
                     : "Clients see your updates in real-time. Use the task log to clarify requirements and post milestones."}
                 </p>
               </div>
@@ -200,7 +253,7 @@ export default function DashboardPage() {
                 </div>
                 <Progress value={overallCompletionRate} className="h-2" />
               </div>
-              <Button asChild className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20">
+              <Button asChild className="w-full h-14 rounded-2xl font-bold shadow-xl shadow-primary/20 text-lg transition-all hover:scale-[1.02]">
                 <Link href="/dashboard/tasks">Enter Project Workspace</Link>
               </Button>
             </CardContent>
@@ -210,3 +263,4 @@ export default function DashboardPage() {
     </DashboardLayout>
   );
 }
+
