@@ -105,8 +105,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       return [
         ...common,
         { name: 'Developers', href: '/dashboard/developers', icon: Code2 },
-        { name: 'Clients', href: '/dashboard/clients', icon: Users },
         { name: 'Teams', href: '/dashboard/teams', icon: Briefcase },
+        { name: 'Clients', href: '/dashboard/clients', icon: Users },
         { name: 'All Projects', href: '/dashboard/tasks', icon: CheckSquare },
         { name: 'User Management', href: '/dashboard/users', icon: UserCheck },
         { name: 'Financials', href: '/dashboard/financials', icon: CreditCard },
