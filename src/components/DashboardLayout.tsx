@@ -15,7 +15,12 @@ import {
   Briefcase,
   UserCheck,
   X,
-  History
+  History,
+  CreditCard,
+  Receipt,
+  Send,
+  MessageSquare,
+  ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -80,7 +85,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="animate-pulse space-y-4 text-center">
           <div className="h-16 w-16 bg-primary/20 rounded-3xl mx-auto flex items-center justify-center font-bold text-2xl text-primary/40">C</div>
-          <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Initializing...</p>
+          <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Initializing Workspace...</p>
         </div>
       </div>
     );
@@ -90,18 +95,48 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const role = profile?.role;
 
-  const links = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Projects', href: '/dashboard/tasks', icon: CheckSquare },
-    { name: 'Activity', href: '/dashboard/updates', icon: History },
-    ...(role === ROLES.ADMIN ? [
-      { name: 'Teams', href: '/dashboard/teams', icon: Briefcase },
-      { name: 'Developers', href: '/dashboard/developers', icon: UserCheck },
-      { name: 'Clients', href: '/dashboard/clients', icon: Users }
-    ] : []),
-    { name: 'Identity', href: '/dashboard/profile', icon: UserIcon },
-    { name: 'Preferences', href: '/dashboard/settings', icon: Settings },
-  ];
+  // Dynamic Navigation Configuration based on User Role
+  const getNavigation = () => {
+    const common = [
+      { name: 'Overview', href: '/dashboard', icon: LayoutDashboard }
+    ];
+
+    if (role === ROLES.ADMIN) {
+      return [
+        ...common,
+        { name: 'User Management', href: '/dashboard/users', icon: UserCheck },
+        { name: 'All Projects', href: '/dashboard/tasks', icon: CheckSquare },
+        { name: 'Teams', href: '/dashboard/teams', icon: Briefcase },
+        { name: 'Financials', href: '/dashboard/financials', icon: CreditCard },
+        { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+      ];
+    }
+
+    if (role === ROLES.DEVELOPER) {
+      return [
+        ...common,
+        { name: 'My Tasks', href: '/dashboard/tasks', icon: CheckSquare },
+        { name: 'Project Timeline', href: '/dashboard/updates', icon: History },
+        { name: 'Submit Update', href: '/dashboard/updates', icon: Send },
+        { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+      ];
+    }
+
+    if (role === ROLES.CLIENT) {
+      return [
+        ...common,
+        { name: 'Project Progress', href: '/dashboard/tasks', icon: CheckSquare },
+        { name: 'Activity Log', href: '/dashboard/updates', icon: History },
+        { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt },
+        { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+        { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+      ];
+    }
+
+    return common;
+  };
+
+  const navItems = getNavigation();
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
@@ -119,21 +154,21 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       )}>
         <div className="flex flex-col h-full p-6">
           <div className="flex items-center justify-between mb-10 px-2">
-            <div className="flex items-center gap-3">
+            <Link href="/dashboard" className="flex items-center gap-3">
               <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground font-bold text-xl shadow-lg shadow-primary/20">
                 C
               </div>
               <span className="text-xl font-bold tracking-tight">CloudCRM</span>
-            </div>
+            </Link>
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(false)}>
               <X className="h-5 w-5" />
             </Button>
           </div>
 
           <nav className="flex-1 space-y-2">
-            {links.map((link) => (
+            {navItems.map((link) => (
               <SidebarLink 
-                key={link.href} 
+                key={link.name} 
                 href={link.href} 
                 icon={link.icon}
                 active={pathname === link.href}
@@ -153,7 +188,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </Avatar>
               <div className="flex flex-col min-w-0">
                 <span className="text-sm font-bold truncate">{profile?.name || user?.email}</span>
-                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">{role || 'Loading...'}</span>
+                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">{role || 'Authenticating...'}</span>
               </div>
             </div>
             <Button 
