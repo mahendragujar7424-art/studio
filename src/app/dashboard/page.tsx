@@ -276,7 +276,7 @@ export default function DashboardPage() {
                 </div>
                 <Progress value={overallCompletionRate} className="h-2" />
               </div>
-              <Button asChild className="w-full h-14 rounded-2xl font-bold shadow-xl shadow-primary/20 text-lg transition-all hover:scale-[1.02]">
+              <Button asChild className="w-full h-auto min-h-14 py-4 px-4 rounded-2xl font-bold shadow-xl shadow-primary/20 text-sm sm:text-lg transition-all hover:scale-[1.02] text-center">
                 <Link href="/dashboard/tasks">Enter Project Workspace</Link>
               </Button>
             </CardContent>

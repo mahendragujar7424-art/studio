@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -134,11 +135,11 @@ export default function SubmitUpdatePage() {
                 placeholder="Briefly explain what was achieved (e.g., 'Implemented Auth state listeners' or 'Fixed hydration mismatches in Navbar')." 
                 className="min-h-[200px] rounded-2xl border-2 bg-secondary/10 focus:bg-white transition-all text-base p-6 leading-relaxed"
                 value={description}
-                onChange={e => setDescription(e.target.value)}
+                onChange={description => setDescription(description.target.value)}
                 required
               />
             </div>
-            <Button type="submit" className="w-full h-16 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:scale-[1.01] transition-transform" disabled={isSubmitting || !selectedTask}>
+            <Button type="submit" className="w-full h-auto min-h-16 py-4 px-4 rounded-2xl font-bold text-sm sm:text-lg shadow-xl shadow-primary/20 hover:scale-[1.01] transition-transform text-center" disabled={isSubmitting || !selectedTask}>
               {isSubmitting ? "Syncing Log..." : "Broadcast Update"}
             </Button>
           </form>
