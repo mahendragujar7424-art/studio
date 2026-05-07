@@ -21,13 +21,27 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
+    // Improved task membership check: Prioritize direct assignment to avoid unnecessary cross-doc reads
     function isTaskMember(taskData) {
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && (
-        taskData.assignedDeveloperId == request.auth.uid || 
-        taskData.assignedClientId == request.auth.uid ||
-        (taskData.assignedTeamId != null && taskData.assignedTeamId == userData.teamId)
-      );
+      if (!isSignedIn()) return false;
+      let uid = request.auth.uid;
+      
+      // 1. Check direct individual assignment (Fastest)
+      if (taskData.assignedDeveloperId == uid || taskData.assignedClientId == uid) {
+        return true;
+      }
+      
+      // 2. Check team assignment (Requires cross-doc read)
+      if (taskData.assignedTeamId != null) {
+        let profile = getUserData(uid);
+        return profile != null && profile.teamId == taskData.assignedTeamId;
+      }
+      
+      return false;
+    }
+
+    function isDeveloper() {
+      return isSignedIn() && getUserData(request.auth.uid).role == 'Developer';
     }
 
     // --- COLLECTION RULES ---
@@ -63,11 +77,10 @@ service cloud.firestore {
       allow list: if isSignedIn();
       allow get: if isAdmin() || isTaskMember(resource.data);
       allow create: if isAdmin();
-      allow update: if resource != null && (isAdmin() || (
-                      getUserData(request.auth.uid).role == 'Developer' && 
-                      (resource.data.assignedDeveloperId == request.auth.uid || 
-                       resource.data.assignedTeamId == getUserData(request.auth.uid).teamId)
-                    ));
+      allow update: if resource != null && (
+                      isAdmin() || 
+                      (isDeveloper() && isTaskMember(resource.data))
+                    );
       allow delete: if resource != null && isAdmin();
     }
 
@@ -75,11 +88,10 @@ service cloud.firestore {
       function getParentTask() {
         return get(/databases/$(database)/documents/tasks/$(taskId)).data;
       }
-      allow list: if isAdmin() || isTaskMember(getParentTask());
-      allow get: if isAdmin() || isTaskMember(getParentTask());
-      allow create: if (isAdmin() || isTaskMember(getParentTask())) && request.resource.data.userId == request.auth.uid;
-      allow update: if resource != null && (isAdmin() || isOwner(resource.data.userId));
-      allow delete: if resource != null && (isAdmin() || isOwner(resource.data.userId));
+      allow list: if isSignedIn() && (isAdmin() || isTaskMember(getParentTask()));
+      allow get: if isSignedIn() && (isAdmin() || isTaskMember(getParentTask()));
+      allow create: if isSignedIn() && (isAdmin() || isTaskMember(getParentTask())) && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if resource != null && (isAdmin() || isOwner(resource.data.userId));
     }
   }
 }
