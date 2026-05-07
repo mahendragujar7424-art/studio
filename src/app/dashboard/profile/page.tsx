@@ -1,8 +1,8 @@
+
 'use client';
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -17,14 +17,10 @@ import {
   User, 
   Mail, 
   Shield, 
-  Calendar, 
-  Code2, 
   Lock, 
   Key, 
   Eye, 
   EyeOff,
-  AlertTriangle,
-  LogOut,
   ShieldCheck,
   UserCheck
 } from 'lucide-react';
@@ -44,8 +40,6 @@ import {
   EmailAuthProvider,
   signOut
 } from 'firebase/auth';
-import { format } from 'date-fns';
-import { ROLES } from '@/lib/constants';
 
 export default function ProfilePage() {
   const { user } = useUser();
@@ -120,7 +114,6 @@ export default function ProfilePage() {
         toast({ title: "Security Key Updated", description: "Access credentials refreshed." });
       }
 
-      // Security best practice: logout after sensitive change
       await signOut(auth);
       router.push('/login');
       toast({ 
@@ -180,7 +173,6 @@ export default function ProfilePage() {
         </div>
 
         <div className="md:col-span-2 space-y-8">
-          {/* Identity Section */}
           <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
             <CardHeader className="px-0 pt-0">
               <CardTitle className="text-xl font-bold font-headline flex items-center gap-2">
@@ -206,7 +198,6 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Security Section */}
           <Card className="border-none shadow-sm bg-white rounded-[2rem] p-8">
             <CardHeader className="px-0 pt-0">
               <CardTitle className="text-xl font-bold font-headline flex items-center gap-2">

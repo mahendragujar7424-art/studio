@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -12,7 +11,6 @@ import { firebaseConfig } from '@/firebase/config';
 import { ROLES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { 
   UserPlus, 
   Search, 
@@ -20,7 +18,6 @@ import {
   Shield, 
   Clock,
   AlertTriangle,
-  Lock,
   Edit,
   UserCheck,
   Eye,
@@ -75,7 +72,6 @@ export default function ClientsPage() {
   const { data: profile } = useDoc(currentUserRef);
 
   const clientsQuery = useMemoFirebase(() => {
-    // Explicitly check role to prevent query before Admin identity is confirmed
     if (!firestore || profile?.role !== ROLES.ADMIN) return null;
     return query(collection(firestore, 'users'), where('role', '==', ROLES.CLIENT));
   }, [firestore, profile?.role]);
@@ -157,128 +153,124 @@ export default function ClientsPage() {
 
   if (!isProfileAdmin && !isClientsLoading && profile) {
     return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-          <Shield className="h-16 w-16 text-destructive/50" />
-          <h1 className="text-2xl font-bold font-headline">Access Denied</h1>
-        </div>
-      </DashboardLayout>
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <Shield className="h-16 w-16 text-destructive/50" />
+        <h1 className="text-2xl font-bold font-headline">Access Denied</h1>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight">Client Hub1</h1>
-            <p className="text-muted-foreground mt-2 text-lg">Manage stakeholder relationships and credentials.</p>
-          </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
-                <UserPlus className="h-5 w-5" /> Provision Client
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold font-headline">New Client Identity</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreateClient} className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Client Entity / Contact</Label>
-                  <Input placeholder="Acme Corp / John Smith" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Official Email</Label>
-                  <Input type="email" placeholder="john@client.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase">Secure Password</Label>
-                  <div className="relative">
-                    <Input 
-                      type={showPassword ? "text" : "password"} 
-                      value={newPassword} 
-                      onChange={e => setNewPassword(e.target.value)} 
-                      required 
-                      className="h-12 rounded-xl pr-12" 
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <DialogFooter className="pt-4">
-                  <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
-                    {isSubmitting ? "Provisioning..." : "Activate Client Account"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-bold font-headline tracking-tight">Client Hub</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Manage stakeholder relationships and credentials.</p>
         </div>
-
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input 
-            placeholder="Search by company or name..." 
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
-          />
-        </div>
-
-        <Card className="border-none shadow-sm bg-white rounded-3xl overflow-hidden">
-          <Table>
-            <TableHeader className="bg-secondary/20">
-              <TableRow className="border-none">
-                <TableHead className="px-8 font-bold uppercase text-[10px] py-6">Client Stakeholder</TableHead>
-                <TableHead className="font-bold uppercase text-[10px]">Email Contact</TableHead>
-                <TableHead className="font-bold uppercase text-[10px]">Onboarded</TableHead>
-                <TableHead className="px-8 text-right font-bold uppercase text-[10px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredClients?.map((u) => (
-                <TableRow key={u.id} className="group hover:bg-secondary/5 border-muted/20">
-                  <TableCell className="px-8 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                        {u.name?.charAt(0) || 'C'}
-                      </div>
-                      <span className="font-bold text-sm">{u.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs text-muted-foreground">{u.email}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground text-[10px] font-medium">
-                      <Clock className="h-3 w-3" />
-                      {u.createdAt ? format(new Date(u.createdAt), 'MMM dd, yyyy') : 'N/A'}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-8 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" className="rounded-full hover:text-primary" onClick={() => { setEditingClient(u); setNewName(u.name); setNewEmail(u.email); setIsEditOpen(true); }}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-                        onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Client' })}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button className="h-14 rounded-2xl px-8 font-bold gap-3 shadow-xl shadow-primary/20">
+              <UserPlus className="h-5 w-5" /> Provision Client
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold font-headline">New Client Identity</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateClient} className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Client Entity / Contact</Label>
+                <input placeholder="Acme Corp / John Smith" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 w-full rounded-xl border px-3" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Official Email</Label>
+                <input type="email" placeholder="john@client.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 w-full rounded-xl border px-3" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Secure Password</Label>
+                <div className="relative">
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={newPassword} 
+                    onChange={e => setNewPassword(e.target.value)} 
+                    required 
+                    className="h-12 w-full rounded-xl border px-3 pr-12" 
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <DialogFooter className="pt-4">
+                <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
+                  {isSubmitting ? "Provisioning..." : "Activate Client Account"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
+
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input 
+          placeholder="Search by company or name..." 
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-12 h-14 rounded-2xl border-none bg-white shadow-sm"
+        />
+      </div>
+
+      <Card className="border-none shadow-sm bg-white rounded-3xl overflow-hidden">
+        <Table>
+          <TableHeader className="bg-secondary/20">
+            <TableRow className="border-none">
+              <TableHead className="px-8 font-bold uppercase text-[10px] py-6">Client Stakeholder</TableHead>
+              <TableHead className="font-bold uppercase text-[10px]">Email Contact</TableHead>
+              <TableHead className="font-bold uppercase text-[10px]">Onboarded</TableHead>
+              <TableHead className="px-8 text-right font-bold uppercase text-[10px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredClients?.map((u) => (
+              <TableRow key={u.id} className="group hover:bg-secondary/5 border-muted/20">
+                <TableCell className="px-8 py-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                      {u.name?.charAt(0) || 'C'}
+                    </div>
+                    <span className="font-bold text-sm">{u.name}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="text-xs text-muted-foreground">{u.email}</span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground text-[10px] font-medium">
+                    <Clock className="h-3 w-3" />
+                    {u.createdAt ? format(new Date(u.createdAt), 'MMM dd, yyyy') : 'N/A'}
+                  </div>
+                </TableCell>
+                <TableCell className="px-8 text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="icon" className="rounded-full hover:text-primary" onClick={() => { setEditingClient(u); setNewName(u.name); setNewEmail(u.email); setIsEditOpen(true); }}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                      onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Client' })}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
@@ -288,13 +280,13 @@ export default function ClientsPage() {
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase">Updated Name</Label>
-              <Input value={newName} onChange={e => setNewName(e.target.value)} className="h-12 rounded-xl" />
+              <input value={newName} onChange={e => setNewName(e.target.value)} className="h-12 w-full rounded-xl border px-3" />
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase">Updated Email</Label>
-              <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="h-12 rounded-xl" />
+              <input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="h-12 w-full rounded-xl border px-3" />
             </div>
-            <p className="text-[10px] text-muted-foreground bg-secondary/10 p-4 rounded-lg">Note: Modifying the email in the profile does not update the authentication email. To change login credentials, please contact support.</p>
+            <p className="text-[10px] text-muted-foreground bg-secondary/10 p-4 rounded-lg">Note: Modifying the email in the profile does not update the authentication email.</p>
           </div>
           <DialogFooter className="pt-4">
             <Button onClick={handleUpdateClient} className="w-full h-14 rounded-2xl font-bold">Update Client Information</Button>
@@ -321,6 +313,6 @@ export default function ClientsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </DashboardLayout>
+    </div>
   );
 }
