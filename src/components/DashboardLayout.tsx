@@ -117,7 +117,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         ...common,
         { name: 'My Tasks', href: '/dashboard/tasks', icon: CheckSquare },
         { name: 'Project Timeline', href: '/dashboard/updates', icon: History },
-        { name: 'Submit Update', href: '/dashboard/updates', icon: Send },
+        { name: 'Submit Update', href: '/dashboard/updates/submit', icon: Send },
         { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
       ];
     }
