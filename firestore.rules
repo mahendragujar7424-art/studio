@@ -26,10 +26,12 @@ service cloud.firestore {
       if (!isSignedIn() || taskData == null) return false;
       let uid = request.auth.uid;
       
+      // Prioritize fast, direct assignment checks
       if (taskData.assignedDeveloperId == uid || taskData.assignedClientId == uid) {
         return true;
       }
       
+      // Fallback to team check if applicable
       if (taskData.assignedTeamId != null) {
         let profile = getUserData(uid);
         return profile != null && profile.teamId == taskData.assignedTeamId;
@@ -83,7 +85,8 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if resource != null && (
                       isAdmin() || 
-                      (isDeveloper() && isTaskMember(resource.data))
+                      (isDeveloper() && isTaskMember(resource.data)) ||
+                      (isClient() && isTaskMember(resource.data))
                     );
       allow delete: if resource != null && isAdmin();
     }
@@ -111,7 +114,6 @@ service cloud.firestore {
         resource.data.clientId == request.auth.uid
       );
       
-      // Allow list if the query is properly filtered for the user's role
       allow list: if isSignedIn() && (
         isAdmin() || 
         (isDeveloper() && request.query.filters.developerId == request.auth.uid) ||
