@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -63,13 +62,6 @@ export default function DashboardPage() {
 
   const { data: profile } = useDoc(userRef);
 
-  // Fetch all developers ONLY for Admins to prevent permission errors for Clients/Devs
-  const devsQuery = useMemoFirebase(() => {
-    if (!firestore || profile?.role !== ROLES.ADMIN) return null;
-    return query(collection(firestore, 'users'), where('role', '==', ROLES.DEVELOPER));
-  }, [firestore, profile?.role]);
-  const { data: developers } = useCollection(devsQuery);
-
   // Teams are viewable by all members to see project assignments
   const teamsQuery = useMemoFirebase(() => {
     if (!firestore || !profile) return null;
@@ -87,16 +79,17 @@ export default function DashboardPage() {
     return null;
   }, [firestore, profile, user?.uid]);
 
-  const { data: myTasks } = useCollection(tasksQuery);
+  const { data: myTasks, isLoading: isTasksLoading } = useCollection(tasksQuery);
 
+  // --- Dynamic Metric Calculations ---
+  const totalCount = myTasks?.length || 0;
   const completedCount = myTasks?.filter(t => t.status === TASK_STATUS.COMPLETED).length || 0;
   const inProgressCount = myTasks?.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length || 0;
   const reviewCount = myTasks?.filter(t => t.status === TASK_STATUS.UNDER_REVIEW).length || 0;
-  const totalCount = myTasks?.length || 0;
   
-  const activeTasks = myTasks?.filter(t => t.status !== TASK_STATUS.COMPLETED && t.status !== TASK_STATUS.ARCHIVED) || [];
-  const avgProgress = activeTasks.length > 0 
-    ? Math.round(activeTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / activeTasks.length) 
+  // Live Momentum: Average progress of all non-archived tasks in the current scope
+  const avgProgress = totalCount > 0 
+    ? Math.round(myTasks!.reduce((acc, t) => acc + (t.progress || 0), 0) / totalCount) 
     : 0;
 
   const overallCompletionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -122,6 +115,7 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Dynamic Metric Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="border-none shadow-sm bg-white overflow-hidden group">
             <CardContent className="p-6">
@@ -133,7 +127,7 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Completed</p>
-                <p className="text-3xl font-bold font-headline">{completedCount}</p>
+                <p className="text-3xl font-bold font-headline">{isTasksLoading ? '...' : completedCount}</p>
               </div>
             </CardContent>
           </Card>
@@ -148,7 +142,7 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">In Progress</p>
-                <p className="text-3xl font-bold font-headline">{inProgressCount}</p>
+                <p className="text-3xl font-bold font-headline">{isTasksLoading ? '...' : inProgressCount}</p>
               </div>
             </CardContent>
           </Card>
@@ -163,7 +157,7 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Pending Review</p>
-                <p className="text-3xl font-bold font-headline">{reviewCount}</p>
+                <p className="text-3xl font-bold font-headline">{isTasksLoading ? '...' : reviewCount}</p>
               </div>
             </CardContent>
           </Card>
@@ -178,13 +172,14 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Live Completion</p>
-                <p className="text-3xl font-bold font-headline">{avgProgress}%</p>
+                <p className="text-3xl font-bold font-headline">{isTasksLoading ? '...' : avgProgress}%</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Dynamic Task Feed */}
           <Card className="lg:col-span-2 border-none shadow-sm bg-white rounded-3xl">
             <CardHeader className="p-8">
               <div className="flex items-center justify-between">
@@ -243,15 +238,21 @@ export default function DashboardPage() {
                     </Link>
                   );
                 })}
-                {(!myTasks || myTasks.length === 0) && (
+                {(!myTasks || myTasks.length === 0) && !isTasksLoading && (
                   <div className="text-center py-10 text-muted-foreground italic bg-secondary/10 rounded-2xl border-2 border-dashed">
                     No active projects at this time.
+                  </div>
+                )}
+                {isTasksLoading && (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map(i => <div key={i} className="h-24 bg-secondary/20 animate-pulse rounded-2xl" />)}
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
+          {/* Dynamic Sidebar Info */}
           <Card className="border-none shadow-sm bg-white rounded-3xl">
             <CardHeader className="p-8">
               <CardTitle className="text-xl font-bold font-headline">Collaboration Hub</CardTitle>
