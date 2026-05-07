@@ -10,7 +10,14 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      if (!isSignedIn()) return false;
+      let uid = request.auth.uid;
+      // Check for explicit admin role document
+      let hasAdminDoc = exists(/databases/$(database)/documents/roles_admin/$(uid));
+      // Fallback for the root admin email to prevent lockout and handle provisioning delays
+      let isRootAdmin = request.auth.token.email == 'admin@crm.com';
+      
+      return hasAdminDoc || isRootAdmin;
     }
 
     function isOwner(userId) {
@@ -55,7 +62,6 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn();
       // Allow listing if the user is an admin, OR if any member is filtering for the Developer directory
-      // Use request.query.filters.role check to allow dashboard to resolve developer names
       allow list: if isAdmin() || (isSignedIn() && request.query.filters.role == 'Developer');
       allow create: if isAdmin() || (
         isOwner(userId) && 
@@ -71,7 +77,7 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isAdmin() || (
         request.auth.uid == adminId && 
-        get(/databases/$(database)/documents/users/$(adminId)).data.email == 'admin@crm.com'
+        (request.auth.token.email == 'admin@crm.com' || get(/databases/$(database)/documents/users/$(adminId)).data.email == 'admin@crm.com')
       );
       allow update, delete: if isAdmin();
     }

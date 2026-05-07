@@ -49,15 +49,17 @@ export default function WorkUpdatesPage() {
     if (!firestore || !profile?.role || !user?.uid) return null;
     const updatesRef = collection(firestore, 'work_updates');
     
-    // For developers and clients, Firestore rules require a direct equality filter on the query
+    // For administrators, we fetch the global log
     if (profile.role === ROLES.ADMIN) {
       return query(updatesRef, orderBy('timestamp', 'desc'));
     }
     
+    // For clients, filter by their ownership
     if (profile.role === ROLES.CLIENT) {
       return query(updatesRef, where('clientId', '==', user.uid), orderBy('timestamp', 'desc'));
     }
 
+    // For developers, filter by their contributions
     if (profile.role === ROLES.DEVELOPER) {
       return query(updatesRef, where('developerId', '==', user.uid), orderBy('timestamp', 'desc'));
     }
@@ -100,16 +102,18 @@ export default function WorkUpdatesPage() {
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto space-y-10">
-        <div>
-          <h1 className="text-4xl font-bold font-headline tracking-tight">Work Progress</h1>
-          <p className="text-muted-foreground mt-2 text-lg">
-            {isDeveloper ? "Log your daily technical achievements." : "Real-time visibility into developer milestones."}
-          </p>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <h1 className="text-4xl font-bold font-headline tracking-tight">Work Progress</h1>
+            <p className="text-muted-foreground mt-2 text-lg">
+              {isDeveloper ? "Log your daily technical achievements." : "Real-time visibility into developer milestones."}
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {isDeveloper && (
-            <Card className="lg:col-span-1 border-none shadow-sm bg-white rounded-[2.5rem] p-8 h-fit sticky top-24">
+            <Card className="lg:col-span-1 border-none shadow-sm bg-white rounded-[2.5rem] p-8 h-fit lg:sticky lg:top-24">
               <CardHeader className="px-0 pt-0">
                 <CardTitle className="text-xl font-bold font-headline flex items-center gap-2 text-primary">
                   <Send className="h-5 w-5" /> Post Progress
