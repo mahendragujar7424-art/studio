@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Send, Loader2, ShieldAlert, Sparkles, ClipboardCheck } from 'lucide-react';
+import { Send, Loader2, ShieldAlert, ClipboardCheck } from 'lucide-react';
 
 export default function SubmitUpdatePage() {
   const { user } = useUser();
@@ -31,17 +31,27 @@ export default function SubmitUpdatePage() {
 
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
-  // Fetch only projects assigned to this specific developer
-  const myTasksQuery = useMemoFirebase(() => {
+  // Fetch projects using the same logic as the main workspace to ensure sync
+  const rawTasksQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid || profile?.role !== ROLES.DEVELOPER) return null;
     return query(
       collection(firestore, 'tasks'),
-      where('assignedDeveloperId', '==', user.uid),
       where('status', '!=', TASK_STATUS.ARCHIVED)
     );
   }, [firestore, user?.uid, profile?.role]);
 
-  const { data: myTasks, isLoading: isTasksLoading } = useCollection(myTasksQuery);
+  const { data: rawTasks, isLoading: isTasksLoading } = useCollection(rawTasksQuery);
+
+  // Filter tasks client-side to catch both Individual and Team assignments (matching TasksPage)
+  const myTasks = React.useMemo(() => {
+    if (!rawTasks || !profile || !user?.uid) return [];
+    
+    return rawTasks.filter(t => {
+      const isIndivAssign = t.assignedDeveloperId === user.uid;
+      const isTeamAssign = t.assignedTeamId && t.assignedTeamId === profile.teamId;
+      return isIndivAssign || isTeamAssign;
+    });
+  }, [rawTasks, profile, user?.uid]);
 
   const handleSubmitUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,14 +132,18 @@ export default function SubmitUpdatePage() {
               <Label className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground ml-1">Active Assignment</Label>
               <Select value={selectedTask} onValueChange={setSelectedTask}>
                 <SelectTrigger className="h-14 rounded-2xl border-2 focus:ring-primary/20 bg-secondary/10">
-                  <SelectValue placeholder={isTasksLoading ? "Loading assignments..." : "Choose Assigned Project"} />
+                  <SelectValue placeholder={isTasksLoading ? "Synchronizing assignments..." : "Choose Assigned Project"} />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-none shadow-2xl">
                   {myTasks?.map(task => (
-                    <SelectItem key={task.id} value={task.id} className="py-3 focus:bg-primary/5">{task.title}</SelectItem>
+                    <SelectItem key={task.id} value={task.id} className="py-3 focus:bg-primary/5">
+                      {task.title}
+                    </SelectItem>
                   ))}
                   {(!myTasks || myTasks.length === 0) && !isTasksLoading && (
-                    <div className="p-4 text-center text-xs text-muted-foreground italic">No projects currently assigned to you.</div>
+                    <div className="p-4 text-center text-xs text-muted-foreground italic bg-secondary/5 rounded-lg m-2">
+                      No active projects assigned to your roster.
+                    </div>
                   )}
                 </SelectContent>
               </Select>
