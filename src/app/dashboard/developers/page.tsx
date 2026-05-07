@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, arrayUnion } from 'firebase/firestore';
+import { collection, doc, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -22,7 +22,9 @@ import {
   AlertTriangle,
   Lock,
   Code2,
-  Users
+  Users,
+  Edit,
+  UserCheck
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -65,8 +67,10 @@ export default function DevelopersPage() {
 
   const [search, setSearch] = React.useState('');
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [userToDelete, setUserToDelete] = React.useState<{ id: string, name: string } | null>(null);
+  const [editingDev, setEditingDev] = React.useState<any>(null);
 
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
@@ -122,7 +126,6 @@ export default function DevelopersPage() {
       const userDocRef = doc(firestore, 'users', newUser.uid);
       setDocumentNonBlocking(userDocRef, userData, { merge: false });
 
-      // If a team is selected, update the team's developer list
       if (newTeamId !== 'none') {
         const teamRef = doc(firestore, 'teams', newTeamId);
         updateDocumentNonBlocking(teamRef, {
@@ -145,11 +148,48 @@ export default function DevelopersPage() {
     }
   };
 
+  const handleUpdateDeveloper = () => {
+    if (!firestore || !editingDev) return;
+    const userDocRef = doc(firestore, 'users', editingDev.id);
+
+    const oldTeamId = editingDev.teamId;
+    const finalTeamId = newTeamId === 'none' ? null : newTeamId;
+
+    // Handle team reassignment
+    if (oldTeamId !== finalTeamId) {
+      if (oldTeamId) {
+        const oldTeamRef = doc(firestore, 'teams', oldTeamId);
+        updateDocumentNonBlocking(oldTeamRef, {
+          developerIds: arrayRemove(editingDev.id)
+        });
+      }
+      if (finalTeamId) {
+        const newTeamRef = doc(firestore, 'teams', finalTeamId);
+        updateDocumentNonBlocking(newTeamRef, {
+          developerIds: arrayUnion(editingDev.id)
+        });
+      }
+    }
+
+    updateDocumentNonBlocking(userDocRef, {
+      name: newName,
+      email: newEmail,
+      designation: newDesignation,
+      teamId: finalTeamId,
+      updatedAt: new Date().toISOString()
+    });
+
+    toast({ title: "Profile Updated", description: "Developer details have been refreshed." });
+    setIsEditOpen(false);
+    resetForm();
+  };
+
   const resetForm = () => {
     setNewName('');
     setNewEmail('');
     setNewDesignation('Full-stack');
     setNewTeamId('none');
+    setEditingDev(null);
   };
 
   const confirmDelete = () => {
@@ -182,7 +222,7 @@ export default function DevelopersPage() {
       <div className="space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight">Developer Management</h1>
+            <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Developer Directory</h1>
             <p className="text-muted-foreground mt-2 text-lg">Manage technical staff and team deployments.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -308,14 +348,31 @@ export default function DevelopersPage() {
                       </div>
                     </TableCell>
                     <TableCell className="px-8 text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-                        onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Developer' })}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="rounded-full hover:text-primary" 
+                          onClick={() => { 
+                            setEditingDev(u); 
+                            setNewName(u.name); 
+                            setNewEmail(u.email); 
+                            setNewDesignation(u.designation || 'Full-stack');
+                            setNewTeamId(u.teamId || 'none');
+                            setIsEditOpen(true); 
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                          onClick={() => setUserToDelete({ id: u.id, name: u.name || 'Developer' })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -324,6 +381,57 @@ export default function DevelopersPage() {
           </Table>
         </Card>
       </div>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold font-headline flex items-center gap-2"><UserCheck className="h-6 w-6 text-primary" /> Edit Developer Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase">Name</Label>
+              <Input value={newName} onChange={e => setNewName(e.target.value)} className="h-12 rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase">Email</Label>
+              <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="h-12 rounded-xl" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Designation</Label>
+                <Select value={newDesignation} onValueChange={setNewDesignation}>
+                  <SelectTrigger className="h-12 rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DESIGNATIONS.map(d => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Team</Label>
+                <Select value={newTeamId} onValueChange={setNewTeamId}>
+                  <SelectTrigger className="h-12 rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Team</SelectItem>
+                    {teams?.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground bg-secondary/10 p-4 rounded-lg">Note: Modifying the email in the profile does not update the authentication email. To change login credentials, please contact support.</p>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button onClick={handleUpdateDeveloper} className="w-full h-14 rounded-2xl font-bold">Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
         <AlertDialogContent className="rounded-[2.5rem] p-8">
