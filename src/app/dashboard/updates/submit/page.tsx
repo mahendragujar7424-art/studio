@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -16,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Send, Loader2, ShieldAlert, Sparkles } from 'lucide-react';
 
 export default function SubmitUpdatePage() {
-  const { user } = userUser();
+  const { user } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -52,6 +51,11 @@ export default function SubmitUpdatePage() {
     const task = myTasks?.find(t => t.id === selectedTask);
 
     try {
+      // Validate that the developer is actually assigned (Extra UI safety)
+      if (!task || task.assignedDeveloperId !== user.uid) {
+        throw new Error("You are not authorized to submit reports for this project.");
+      }
+
       // Create the work update document with full context for role-based visibility
       await addDoc(collection(firestore, 'work_updates'), {
         projectId: selectedTask,
@@ -66,8 +70,8 @@ export default function SubmitUpdatePage() {
       setDescription('');
       setSelectedTask('');
       toast({ 
-        title: "Work Update Broadcasted", 
-        description: "Your progress has been synchronized with the project timeline." 
+        title: "Report Sent to Admin", 
+        description: "Your technical progress has been synchronized with the project timeline." 
       });
       router.push('/dashboard/updates');
     } catch (error: any) {
@@ -93,7 +97,7 @@ export default function SubmitUpdatePage() {
         <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
           <ShieldAlert className="h-16 w-16 text-destructive/50" />
           <h1 className="text-2xl font-bold font-headline">Access Restricted</h1>
-          <p className="text-muted-foreground">Only technical staff can broadcast project updates.</p>
+          <p className="text-muted-foreground">Only technical staff can broadcast project reports.</p>
         </div>
       </DashboardLayout>
     );
@@ -134,7 +138,7 @@ export default function SubmitUpdatePage() {
               </Select>
             </div>
             <div className="space-y-3">
-              <Label className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground ml-1">Work Description</Label>
+              <Label className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground ml-1">Report Description</Label>
               <Textarea 
                 placeholder="Detail the technical achievement (e.g., 'Implemented JWT refresh logic' or 'Refactored navigation state')." 
                 className="min-h-[200px] rounded-2xl border-2 bg-secondary/10 focus:bg-white transition-all text-base p-6 leading-relaxed"
@@ -144,16 +148,11 @@ export default function SubmitUpdatePage() {
               />
             </div>
             <Button type="submit" className="w-full h-auto min-h-16 py-4 px-4 rounded-2xl font-bold text-sm sm:text-lg shadow-xl shadow-primary/20 hover:scale-[1.01] transition-transform text-center" disabled={isSubmitting || !selectedTask}>
-              {isSubmitting ? <><Loader2 className="h-5 w-5 animate-spin mr-2" /> Broadcast Syncing...</> : <><Send className="h-5 w-5 mr-2" /> Broadcast Milestone Update</>}
+              {isSubmitting ? <><Loader2 className="h-5 w-5 animate-spin mr-2" /> Syncing Report...</> : <><Send className="h-5 w-5 mr-2" /> Broadcast Milestone Report</>}
             </Button>
           </form>
         </Card>
       </div>
     </DashboardLayout>
   );
-}
-
-function userUser() {
-    const { user, isUserLoading, userError } = useUser();
-    return { user, isUserLoading, userError };
 }

@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -6,14 +5,16 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, doc } from 'firebase/firestore';
 import { ROLES } from '@/lib/constants';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
-import { History, User as UserIcon, Clock, Briefcase, Loader2, Info, Sparkles } from 'lucide-react';
+import { History, User as UserIcon, Clock, Briefcase, Loader2, Info, Sparkles, Search, Filter } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
 
 export default function WorkUpdatesPage() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const [search, setSearch] = React.useState('');
 
   const userRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -27,19 +28,15 @@ export default function WorkUpdatesPage() {
     
     const updatesRef = collection(firestore, 'work_updates');
     
-    // ROLE-BASED VISIBILITY LOGIC
     if (profile.role === ROLES.ADMIN) {
-      // Admins see a global synchronized feed
       return query(updatesRef, orderBy('timestamp', 'desc'));
     }
     
     if (profile.role === ROLES.CLIENT) {
-      // Clients see updates mapped specifically to their projects via clientId
       return query(updatesRef, where('clientId', '==', user.uid), orderBy('timestamp', 'desc'));
     }
 
     if (profile.role === ROLES.DEVELOPER) {
-      // Developers see their personal contribution history
       return query(updatesRef, where('developerId', '==', user.uid), orderBy('timestamp', 'desc'));
     }
 
@@ -47,6 +44,12 @@ export default function WorkUpdatesPage() {
   }, [firestore, profile?.role, user?.uid]);
 
   const { data: updates, isLoading: isUpdatesLoading } = useCollection(updatesQuery);
+
+  const filteredUpdates = updates?.filter(u => 
+    u.projectTitle?.toLowerCase().includes(search.toLowerCase()) || 
+    u.developerName?.toLowerCase().includes(search.toLowerCase()) ||
+    u.description?.toLowerCase().includes(search.toLowerCase())
+  );
 
   if (isProfileLoading) {
     return (
@@ -63,7 +66,7 @@ export default function WorkUpdatesPage() {
       <div className="max-w-4xl mx-auto space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Project Timeline</h1>
+            <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Project Reports</h1>
             <p className="text-muted-foreground mt-2 text-lg">
               Synchronized chronological audit of technical milestones and delivery achievements.
             </p>
@@ -75,21 +78,34 @@ export default function WorkUpdatesPage() {
           <AlertTitle className="text-primary font-bold mb-1 uppercase tracking-widest text-[10px]">Ecosystem Awareness</AlertTitle>
           <AlertDescription className="text-muted-foreground text-sm">
             {profile?.role === ROLES.ADMIN 
-              ? "Global Monitoring Active: You are viewing all technical logs across the entire organizational roster." 
+              ? "Administrator View: Monitoring all technical reports and developer submissions across the organization." 
               : profile?.role === ROLES.CLIENT 
-              ? "Project Transparency Active: This feed displays real-time milestones posted by developers assigned to your features."
-              : "Contribution Log: This timeline tracks your broadcasted updates to stakeholders and management."}
+              ? "Project Transparency: Viewing real-time milestones posted by developers assigned to your features."
+              : "Contribution History: Tracking your broadcasted reports to stakeholders and management."}
           </AlertDescription>
         </Alert>
 
         <div className="space-y-6">
-          <div className="flex items-center gap-3 mb-4">
-            <History className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-bold font-headline">Activity Stream</h2>
+          <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
+            <div className="flex items-center gap-3 mr-auto">
+              <History className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl font-bold font-headline">Recent Reports</h2>
+            </div>
+            {profile?.role === ROLES.ADMIN && (
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Filter by Dev or Project..." 
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="pl-10 h-11 rounded-xl bg-white border-2 border-primary/5 focus:border-primary/20"
+                />
+              </div>
+            )}
           </div>
           
           <div className="space-y-6 relative before:absolute before:left-8 before:top-2 before:bottom-2 before:w-1 before:bg-primary/10 before:rounded-full">
-            {updates?.map((update) => (
+            {filteredUpdates?.map((update) => (
               <div key={update.id} className="relative pl-16 group">
                 <div className="absolute left-[26px] top-6 h-5 w-5 rounded-full bg-white border-4 border-primary group-hover:scale-125 transition-all shadow-sm z-10" />
                 <Card className="border-none shadow-sm bg-white rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
@@ -123,10 +139,10 @@ export default function WorkUpdatesPage() {
               <div key={i} className="pl-16 h-40 rounded-3xl bg-white/50 animate-pulse border-none mb-6" />
             ))}
 
-            {(!updates || updates.length === 0) && !isUpdatesLoading && (
+            {(!filteredUpdates || filteredUpdates.length === 0) && !isUpdatesLoading && (
               <div className="pl-16 py-20 text-center text-muted-foreground italic bg-white/50 rounded-3xl border-2 border-dashed">
                 <History className="h-8 w-8 mx-auto mb-4 opacity-20" />
-                <p>No technical milestones recorded in this stream yet.</p>
+                <p>No technical reports found matching your criteria.</p>
               </div>
             )}
           </div>

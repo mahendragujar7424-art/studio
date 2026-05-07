@@ -61,8 +61,6 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isSignedIn();
-      // Allow authenticated members to list users when filtering for developers (technical directory)
-      // This is safe as it's a common need for project-based dashboards.
       allow list: if isAdmin() || (isSignedIn() && request.query.filters.get('role', [null])[0] == 'Developer');
       allow create: if isAdmin() || (
         isOwner(userId) && 
@@ -123,14 +121,14 @@ service cloud.firestore {
         resource.data.clientId == request.auth.uid
       );
       
-      // Robust list rule using .get() to avoid evaluation errors on missing filter keys
       allow list: if isSignedIn() && (
         isAdmin() || 
         (request.query.filters.get('developerId', [null])[0] == request.auth.uid) ||
         (request.query.filters.get('clientId', [null])[0] == request.auth.uid)
       );
 
-      allow create: if isSignedIn() && isDeveloper();
+      // Tightened validation: Developer can only report for themselves
+      allow create: if isSignedIn() && isDeveloper() && request.resource.data.developerId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
   }
