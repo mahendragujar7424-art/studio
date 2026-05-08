@@ -24,7 +24,8 @@ import {
   EyeOff,
   Mail,
   Copy,
-  Check
+  Check,
+  Key
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -112,8 +113,8 @@ export default function ClientsPage() {
       setDocumentNonBlocking(userDocRef, userData, { merge: false });
 
       toast({ 
-        title: "Client Account Created", 
-        description: `${newName} has been granted portal access with your custom password.` 
+        title: "Client Provisioned", 
+        description: `${newName} has been granted access. Initial credentials active.` 
       });
       setIsCreateOpen(false);
       resetForm();
@@ -130,7 +131,7 @@ export default function ClientsPage() {
     try {
       await sendPasswordResetEmail(auth, email);
       toast({ 
-        title: "Reset Link Sent", 
+        title: "Security Link Sent", 
         description: `Recovery instructions were sent to ${email}.` 
       });
     } catch (error: any) {
@@ -194,8 +195,8 @@ export default function ClientsPage() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold font-headline tracking-tight">Client Hub</h1>
-          <p className="text-muted-foreground mt-2 text-lg">Manage stakeholder relationships and credentials.</p>
+          <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Stakeholder Panel</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Manage client identities and workspace access.</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
@@ -217,25 +218,26 @@ export default function ClientsPage() {
                 <Input type="email" placeholder="john@client.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Unique Initial Password</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Provision Initial Password</Label>
                 <div className="relative">
                   <Input 
                     type={showPassword ? "text" : "password"} 
                     value={newPassword} 
                     onChange={e => setNewPassword(e.target.value)} 
-                    placeholder="Enter custom password"
+                    placeholder="Set starting password"
                     required 
                     className="h-12 rounded-xl pr-24" 
                   />
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <button type="button" onClick={copyPassword} className="p-2 text-muted-foreground hover:text-primary">
+                    <button type="button" onClick={copyPassword} className="p-2 text-muted-foreground hover:text-primary transition-colors">
                       {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                     </button>
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-2 text-muted-foreground hover:text-primary">
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-2 text-muted-foreground hover:text-primary transition-colors">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
+                <p className="text-[10px] text-muted-foreground italic">Copy this password to share with the client. It will be securely hashed upon creation.</p>
               </div>
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
@@ -325,20 +327,41 @@ export default function ClientsPage() {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold font-headline text-primary flex items-center gap-2"><UserCheck className="h-6 w-6" /> Modify Client Profile</DialogTitle>
+            <DialogTitle className="text-2xl font-bold font-headline text-primary flex items-center gap-2">
+              <UserCheck className="h-6 w-6" /> Client Profile
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase">Updated Name</Label>
-              <Input value={newName} onChange={e => setNewName(e.target.value)} className="h-12 rounded-xl" />
+          <div className="space-y-6 pt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Updated Name</Label>
+                <Input value={newName} onChange={e => setNewName(e.target.value)} className="h-12 rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Updated Email</Label>
+                <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="h-12 rounded-xl" />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase">Updated Email</Label>
-              <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="h-12 rounded-xl" />
+
+            <div className="p-6 rounded-2xl bg-secondary/10 border border-secondary space-y-4">
+              <div className="flex items-center gap-2 text-primary">
+                <Key className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-widest">Credential Security</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Admins do not have access to existing client passwords. To update credentials, send a secure recovery link to the client's email.
+              </p>
+              <Button 
+                variant="outline" 
+                className="w-full h-12 rounded-xl border-2 font-bold gap-2 bg-white"
+                onClick={() => handleSendResetEmail(editingClient?.email)}
+              >
+                <Mail className="h-4 w-4" /> Send Recovery Email
+              </Button>
             </div>
           </div>
           <DialogFooter className="pt-4">
-            <Button onClick={handleUpdateClient} className="w-full h-14 rounded-2xl font-bold">Update Client Information</Button>
+            <Button onClick={handleUpdateClient} className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20">Save Workspace Identity</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

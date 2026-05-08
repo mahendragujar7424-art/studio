@@ -27,7 +27,8 @@ import {
   EyeOff,
   Mail,
   Copy,
-  Check
+  Check,
+  Key
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -145,7 +146,7 @@ export default function DevelopersPage() {
 
       toast({ 
         title: "Developer Provisioned", 
-        description: `${newName} added with your custom password.` 
+        description: `${newName} has been added. Credentials are now active.` 
       });
       
       setIsCreateOpen(false);
@@ -163,8 +164,8 @@ export default function DevelopersPage() {
     try {
       await sendPasswordResetEmail(auth, email);
       toast({ 
-        title: "Reset Link Sent", 
-        description: `Credentials recovery link was sent to ${email}.` 
+        title: "Security Link Sent", 
+        description: `Reset instructions were sent to ${email}.` 
       });
     } catch (error: any) {
       toast({ title: "Reset Error", description: error.message, variant: "destructive" });
@@ -273,25 +274,26 @@ export default function DevelopersPage() {
                 <Input type="email" placeholder="jane@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Unique Initial Password</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Initial Access Key</Label>
                 <div className="relative">
                   <Input 
                     type={showPassword ? "text" : "password"} 
                     value={newPassword} 
                     onChange={e => setNewPassword(e.target.value)} 
-                    placeholder="Enter custom password"
+                    placeholder="Set custom password"
                     required 
                     className="h-12 rounded-xl pr-24" 
                   />
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <button type="button" onClick={copyPassword} className="p-2 text-muted-foreground hover:text-primary">
+                    <button type="button" onClick={copyPassword} className="p-2 text-muted-foreground hover:text-primary transition-colors">
                       {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                     </button>
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-2 text-muted-foreground hover:text-primary">
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-2 text-muted-foreground hover:text-primary transition-colors">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
+                <p className="text-[10px] text-muted-foreground italic">Admins define the starting key. Copy and share it with the dev. It is hashed securely.</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -438,49 +440,70 @@ export default function DevelopersPage() {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold font-headline flex items-center gap-2"><UserCheck className="h-6 w-6 text-primary" /> Edit Developer Profile</DialogTitle>
+            <DialogTitle className="text-2xl font-bold font-headline flex items-center gap-2">
+              <UserCheck className="h-6 w-6 text-primary" /> Developer Profile
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase">Name</Label>
-              <Input value={newName} onChange={e => setNewName(e.target.value)} className="h-12 rounded-xl" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase">Email</Label>
-              <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="h-12 rounded-xl" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6 pt-4">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Designation</Label>
-                <Select value={newDesignation} onValueChange={setNewDesignation}>
-                  <SelectTrigger className="h-12 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DESIGNATIONS.map(d => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-bold uppercase">Name</Label>
+                <Input value={newName} onChange={e => setNewName(e.target.value)} className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Team</Label>
-                <Select value={newTeamId} onValueChange={setNewTeamId}>
-                  <SelectTrigger className="h-12 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Team</SelectItem>
-                    {teams?.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-bold uppercase">Email</Label>
+                <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="h-12 rounded-xl" />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase">Designation</Label>
+                  <Select value={newDesignation} onValueChange={setNewDesignation}>
+                    <SelectTrigger className="h-12 rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DESIGNATIONS.map(d => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase">Team</Label>
+                  <Select value={newTeamId} onValueChange={setNewTeamId}>
+                    <SelectTrigger className="h-12 rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Team</SelectItem>
+                      {teams?.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-secondary/10 border border-secondary space-y-4">
+              <div className="flex items-center gap-2 text-primary">
+                <Key className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-widest">Access Protocol</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                For security, Admins cannot force a specific password on existing technical staff. To reset their access, trigger a secure reset email.
+              </p>
+              <Button 
+                variant="outline" 
+                className="w-full h-12 rounded-xl border-2 font-bold gap-2 bg-white"
+                onClick={() => handleSendResetEmail(editingDev?.email)}
+              >
+                <Mail className="h-4 w-4" /> Trigger Reset Email
+              </Button>
             </div>
           </div>
           <DialogFooter className="pt-4">
-            <Button onClick={handleUpdateDeveloper} className="w-full h-14 rounded-2xl font-bold">Save Changes</Button>
+            <Button onClick={handleUpdateDeveloper} className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20">Save Profile Updates</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -26,7 +26,8 @@ import {
   EyeOff,
   Copy,
   Check,
-  Mail
+  Mail,
+  Key
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -123,7 +124,7 @@ export default function UsersPage() {
 
       toast({ 
         title: "Account Provisioned", 
-        description: `Credentials created for ${newName} with your custom password.` 
+        description: `Credentials created for ${newName}. Account is now active.` 
       });
       setIsCreateOpen(false);
       resetForm();
@@ -140,8 +141,8 @@ export default function UsersPage() {
     try {
       await sendPasswordResetEmail(auth, email);
       toast({ 
-        title: "Reset Link Sent", 
-        description: `An official password recovery email was sent to ${email}.` 
+        title: "Security Link Sent", 
+        description: `Recovery instructions were sent to ${email}.` 
       });
     } catch (error: any) {
       toast({ 
@@ -263,26 +264,26 @@ export default function UsersPage() {
                 <Input type="email" placeholder="john@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Unique Initial Password</Label>
+                <Label className="text-xs font-bold uppercase">Manual Password Provisioning</Label>
                 <div className="relative">
                   <Input 
                     type={showPassword ? "text" : "password"} 
                     value={newPassword} 
                     onChange={e => setNewPassword(e.target.value)} 
-                    placeholder="Enter custom password"
+                    placeholder="Set custom password"
                     required 
                     className="h-12 rounded-xl pr-24" 
                   />
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <button type="button" onClick={copyPassword} className="p-2 text-muted-foreground hover:text-primary">
+                    <button type="button" onClick={copyPassword} className="p-2 text-muted-foreground hover:text-primary transition-colors">
                       {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                     </button>
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-2 text-muted-foreground hover:text-primary">
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-2 text-muted-foreground hover:text-primary transition-colors">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground italic">Important: You must set a custom password. This will be encrypted and cannot be retrieved later.</p>
+                <p className="text-[10px] text-muted-foreground italic">Important: Admins set the initial password. Copy and share it with the member. It is hashed upon saving.</p>
               </div>
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
@@ -383,15 +384,15 @@ export default function UsersPage() {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="rounded-[2rem]">
+        <DialogContent className="rounded-[2.5rem] p-8">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" /> Modify Permissions
+            <DialogTitle className="flex items-center gap-2 text-2xl font-bold font-headline">
+              <ShieldCheck className="h-6 w-6 text-primary" /> Member Credentials
             </DialogTitle>
           </DialogHeader>
-          <div className="py-6 space-y-4">
+          <div className="py-6 space-y-6">
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase">Access Role</Label>
+              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Permission Profile</Label>
               <Select value={newRole} onValueChange={setNewRole}>
                 <SelectTrigger className="h-12 rounded-xl border-2"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -401,12 +402,26 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-              Changing a member's role will immediately update their navigation and data access permissions across the dashboard.
-            </p>
+
+            <div className="p-6 rounded-2xl bg-secondary/10 border border-secondary space-y-4">
+              <div className="flex items-center gap-2 text-primary">
+                <Key className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-widest">Access Recovery</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Admins cannot directly view current passwords. To force a password update, send a secure reset link to the member's work email.
+              </p>
+              <Button 
+                variant="outline" 
+                className="w-full h-12 rounded-xl border-2 font-bold gap-2 bg-white"
+                onClick={() => handleSendResetEmail(editingUser?.email)}
+              >
+                <Mail className="h-4 w-4" /> Send Reset Instructions
+              </Button>
+            </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleUpdateUserRole} className="w-full h-12 rounded-xl font-bold">Apply Changes</Button>
+            <Button onClick={handleUpdateUserRole} className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20">Apply Member Updates</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
