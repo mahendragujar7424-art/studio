@@ -29,46 +29,52 @@ export default function LoginPage() {
 
     setLoading(true);
     
-    // Sanitation: Remove accidental whitespace which causes auth/invalid-credential
-    const cleanEmail = email.trim();
+    // Normalization: Trim and Lowercase email to ensure consistency
+    const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
+
+    console.log(`[Auth Debug] Attempting login for: ${cleanEmail}`);
 
     try {
       // 1. Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       const user = userCredential.user;
       
+      console.log(`[Auth Debug] Firebase Auth Success. UID: ${user.uid}`);
+      
       // 2. Fetch Role from Firestore using the AUTH UID
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       
       if (!userDoc.exists()) {
+        console.error(`[Auth Debug] No Firestore profile found for UID: ${user.uid}`);
         toast({ 
-          title: "Profile Missing", 
-          description: "Auth successful, but no Firestore record found. Ensure the UID matches.", 
+          title: "Profile Synchronization Error", 
+          description: "Authenticated successfully, but your role profile was not found. Please contact an Administrator.", 
           variant: "destructive" 
         });
         return;
       }
 
       const userData = userDoc.data();
+      console.log(`[Auth Debug] Profile Found. Role: ${userData.role}`);
       
       toast({ 
         title: "Access Granted", 
-        description: `Welcome back, ${userData.name}.` 
+        description: `Welcome back, ${userData.name || 'User'}.` 
       });
       
       router.push('/dashboard');
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("[Auth Debug] Login failure:", error.code, error.message);
       
-      let errorMessage = "Invalid credentials provided.";
-      // auth/invalid-credential is the generic error for both wrong email/password or disabled provider
-      if (error.code === 'auth/invalid-credential') {
-        errorMessage = "Email or password incorrect. Please verify credentials or check if the Email/Password provider is enabled in your Firebase Console.";
-      } else if (error.code === 'auth/user-not-found') {
-        errorMessage = "No account exists with this email.";
+      let errorMessage = "Invalid email or password.";
+      
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        errorMessage = "Invalid credentials. Please verify your email and password.";
       } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = "Access temporarily blocked due to many failed attempts. Try again later.";
+        errorMessage = "Access temporarily blocked due to multiple failed attempts. Try again later.";
+      } else if (error.code === 'auth/internal-error') {
+        errorMessage = "Authentication service is currently unavailable.";
       }
 
       toast({ 
@@ -93,9 +99,9 @@ export default function LoginPage() {
 
         <Alert className="bg-primary/5 border-primary/20 rounded-2xl">
           <ShieldCheck className="h-4 w-4 text-primary" />
-          <AlertTitle className="text-xs font-bold uppercase tracking-wider text-primary">Secure Authentication</AlertTitle>
+          <AlertTitle className="text-xs font-bold uppercase tracking-wider text-primary">Secure Workspace</AlertTitle>
           <AlertDescription className="text-xs text-muted-foreground">
-            Identity verification is processed through organizational security protocols.
+            Identity verification is required to access project data.
           </AlertDescription>
         </Alert>
 
@@ -104,12 +110,12 @@ export default function LoginPage() {
             <CardTitle className="text-2xl font-bold flex items-center justify-center gap-2">
               <LogIn className="h-5 w-5 text-primary" /> Member Login
             </CardTitle>
-            <CardDescription>Secure access to the workspace environment.</CardDescription>
+            <CardDescription>Enter your credentials to continue.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Official Email</Label>
+                <Label className="text-xs font-bold uppercase">Work Email</Label>
                 <Input 
                   type="email" 
                   placeholder="name@company.com" 
@@ -120,7 +126,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Private Password</Label>
+                <Label className="text-xs font-bold uppercase">Password</Label>
                 <Input 
                   type="password" 
                   placeholder="••••••••" 
@@ -132,15 +138,15 @@ export default function LoginPage() {
               </div>
               <Button type="submit" className="w-full h-14 rounded-2xl font-bold shadow-xl shadow-primary/20" disabled={loading}>
                 {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
-                {loading ? "Verifying..." : "Enter Workspace"}
+                {loading ? "Authenticating..." : "Enter Workspace"}
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="pt-6 border-t flex flex-col gap-4">
-             <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          <CardFooter className="pt-6 border-t flex flex-col gap-4 text-center">
+             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                <AlertCircle className="h-3 w-3" />
-               Forgot your key? Contact your System Administrator.
-             </div>
+               Forgot password? Contact your Administrator.
+             </p>
           </CardFooter>
         </Card>
       </div>

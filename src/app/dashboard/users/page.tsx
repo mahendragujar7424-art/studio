@@ -92,12 +92,12 @@ export default function UsersPage() {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
 
-    // Sanitation: Remove accidental whitespace which causes login failures
-    const cleanEmail = newEmail.trim();
+    // Normalization: Ensure inputs are clean and email is lowercase
+    const cleanEmail = newEmail.trim().toLowerCase();
     const cleanPassword = newPassword.trim();
 
     if (cleanPassword.length < 6) {
-      toast({ title: "Validation Error", description: "Password must be at least 6 characters.", variant: "destructive" });
+      toast({ title: "Security Error", description: "Password must be at least 6 characters.", variant: "destructive" });
       return;
     }
 
@@ -105,15 +105,15 @@ export default function UsersPage() {
     let secondaryApp;
 
     try {
-      // 1. Initialize secondary app to create user without disrupting Admin session
+      // 1. Initialize secondary app to register user without signing out the Admin
       secondaryApp = initializeApp(firebaseConfig, 'SecondaryAppUser_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
       
-      // 2. Create Auth Record
+      // 2. Create Auth Account
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, cleanPassword);
       const newUser = userCredential.user;
 
-      // 3. Prepare Firestore Record with EXACT UID mapping
+      // 3. Sync UID to Firestore profile
       const userData = {
         id: newUser.uid,
         name: newName,
@@ -123,7 +123,7 @@ export default function UsersPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      // 4. Critical: Await Firestore write so profile is ready for immediate login
+      // 4. Critical: Await Firestore write so the profile is ready for immediate login
       const userDocRef = doc(firestore, 'users', newUser.uid);
       await setDoc(userDocRef, userData);
 
@@ -134,13 +134,13 @@ export default function UsersPage() {
 
       toast({ 
         title: "Account Provisioned", 
-        description: `Credentials created for ${newName}. Account is active.` 
+        description: `Account for ${newName} is now active and synchronized.` 
       });
       setIsCreateOpen(false);
       resetForm();
     } catch (error: any) {
-      console.error("User Provisioning Error:", error);
-      toast({ title: "Provisioning Error", description: error.message, variant: "destructive" });
+      console.error("[Provisioning Error]", error);
+      toast({ title: "Provisioning Failed", description: error.message, variant: "destructive" });
     } finally {
       if (secondaryApp) await deleteApp(secondaryApp);
       setIsSubmitting(false);
@@ -153,10 +153,10 @@ export default function UsersPage() {
       await sendPasswordResetEmail(auth, email);
       toast({ 
         title: "Security Link Sent", 
-        description: `Recovery instructions were sent to ${email}.` 
+        description: `Recovery instructions sent to ${email}.` 
       });
     } catch (error: any) {
-      toast({ title: "Reset Error", description: error.message, variant: "destructive" });
+      toast({ title: "Action Failed", description: error.message, variant: "destructive" });
     }
   };
 
@@ -190,7 +190,7 @@ export default function UsersPage() {
         await deleteDoc(adminRoleRef);
       }
 
-      toast({ title: "Permissions Updated", description: "Role-based access has been modified." });
+      toast({ title: "Permissions Updated", description: "Member role has been modified." });
       setIsEditOpen(false);
       setEditingUser(null);
     } catch (e: any) {
@@ -204,7 +204,7 @@ export default function UsersPage() {
     if (userToDelete.role === ROLES.ADMIN) {
       const adminCount = users.filter(u => u.role === ROLES.ADMIN).length;
       if (adminCount <= 1) {
-        toast({ title: "Critical Restriction", description: "Cannot remove final Administrator.", variant: "destructive" });
+        toast({ title: "Critical Restriction", description: "Workspace requires at least one Administrator.", variant: "destructive" });
         setUserToDelete(null);
         return;
       }
@@ -214,7 +214,7 @@ export default function UsersPage() {
     const adminRoleRef = doc(firestore, 'roles_admin', userToDelete.id);
     deleteDocumentNonBlocking(userDocRef);
     deleteDocumentNonBlocking(adminRoleRef);
-    toast({ title: "Access Revoked", description: `"${userToDelete.name}" removed from workspace.` });
+    toast({ title: "Access Revoked", description: `Account "${userToDelete.name}" removed.` });
     setUserToDelete(null);
   };
 
@@ -223,22 +223,12 @@ export default function UsersPage() {
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (profile && profile.role !== ROLES.ADMIN) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4 text-center">
-        <Shield className="h-16 w-16 text-destructive/50" />
-        <h1 className="text-2xl font-bold font-headline">Access Restricted</h1>
-        <p className="text-muted-foreground">Only administrators can manage workspace members.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold font-headline tracking-tight">Member Management</h1>
-          <p className="text-muted-foreground mt-2 text-lg">Control organizational access and technical roles.</p>
+          <h1 className="text-4xl font-bold font-headline tracking-tight">Workspace Members</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Manage organizational access and permission tiers.</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
@@ -248,30 +238,30 @@ export default function UsersPage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold font-headline">New Member Entry</DialogTitle>
+              <DialogTitle className="text-2xl font-bold font-headline">New Member Identity</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreateUser} className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Role Assignment</Label>
+                <Label className="text-xs font-bold uppercase text-muted-foreground">Permission Tier</Label>
                 <Select value={newRole} onValueChange={setNewRole}>
                   <SelectTrigger className="h-12 rounded-xl border-2"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={ROLES.CLIENT}>Client Stakeholder</SelectItem>
                     <SelectItem value={ROLES.DEVELOPER}>Technical Developer</SelectItem>
-                    <SelectItem value={ROLES.ADMIN}>Full Administrator</SelectItem>
+                    <SelectItem value={ROLES.ADMIN}>Workspace Administrator</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Full Name</Label>
-                <Input placeholder="John Doe" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl border-2" />
+                <Label className="text-xs font-bold uppercase text-muted-foreground">Full Name</Label>
+                <Input placeholder="Jane Doe" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl border-2" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Work Email</Label>
-                <Input type="email" placeholder="john@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl border-2" />
+                <Label className="text-xs font-bold uppercase text-muted-foreground">Login Email</Label>
+                <Input type="email" placeholder="jane@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl border-2" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Password Provisioning</Label>
+                <Label className="text-xs font-bold uppercase text-muted-foreground">Initial Access Password</Label>
                 <div className="relative">
                   <Input 
                     type={showPassword ? "text" : "password"} 
@@ -290,11 +280,11 @@ export default function UsersPage() {
                     </button>
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground italic">Important: Trimming whitespace is automatic. Copy this key for the user.</p>
+                <p className="text-[10px] text-muted-foreground italic">Inputs are automatically trimmed. Copy this password for the user.</p>
               </div>
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
-                  {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Provisioning...</> : "Activate Account"}
+                  {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Provisioning...</> : "Activate Workspace Member"}
                 </Button>
               </DialogFooter>
             </form>
@@ -316,9 +306,9 @@ export default function UsersPage() {
         <Table>
           <TableHeader className="bg-secondary/20">
             <TableRow className="border-none">
-              <TableHead className="px-8 font-bold uppercase text-[10px] py-6">Identity</TableHead>
+              <TableHead className="px-8 font-bold uppercase text-[10px] py-6">Member Identity</TableHead>
               <TableHead className="font-bold uppercase text-[10px]">Permission Role</TableHead>
-              <TableHead className="font-bold uppercase text-[10px]">Joined Workspace</TableHead>
+              <TableHead className="font-bold uppercase text-[10px]">Onboarded</TableHead>
               <TableHead className="px-8 text-right font-bold uppercase text-[10px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -394,7 +384,7 @@ export default function UsersPage() {
         <DialogContent className="rounded-[2.5rem] p-8">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl font-bold font-headline">
-              <ShieldCheck className="h-6 w-6 text-primary" /> Member Credentials
+              <ShieldCheck className="h-6 w-6 text-primary" /> Edit Permissions
             </DialogTitle>
           </DialogHeader>
           <div className="py-6 space-y-6">
@@ -413,22 +403,22 @@ export default function UsersPage() {
             <div className="p-6 rounded-2xl bg-secondary/10 border border-secondary space-y-4">
               <div className="flex items-center gap-2 text-primary">
                 <Key className="h-4 w-4" />
-                <span className="text-xs font-bold uppercase tracking-widest">Access Recovery</span>
+                <span className="text-xs font-bold uppercase tracking-widest">Access Protocol</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Admins cannot directly view current passwords. To update access, send a secure reset link to the member's work email.
+                Direct password modification is restricted for existing accounts. To update access credentials, trigger a secure reset link to the member's work email.
               </p>
               <Button 
                 variant="outline" 
                 className="w-full h-12 rounded-xl border-2 font-bold gap-2 bg-white"
                 onClick={() => handleSendResetEmail(editingUser?.email)}
               >
-                <Mail className="h-4 w-4" /> Send Reset Instructions
+                <Mail className="h-4 w-4" /> Trigger Reset Email
               </Button>
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleUpdateUserRole} className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20">Apply Member Updates</Button>
+            <Button onClick={handleUpdateUserRole} className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20">Apply Workspace Updates</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -439,9 +429,9 @@ export default function UsersPage() {
             <div className="h-12 w-12 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <AlertDialogTitle className="text-2xl font-bold">Confirm Deletion</AlertDialogTitle>
+            <AlertDialogTitle className="text-2xl font-bold">Confirm Removal</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you certain you want to revoke all workspace access for <span className="font-bold text-foreground">{userToDelete?.name}</span>? This action is final.
+              Are you sure you want to revoke workspace access for <span className="font-bold text-foreground">{userToDelete?.name}</span>? This action is permanent.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 mt-4">
