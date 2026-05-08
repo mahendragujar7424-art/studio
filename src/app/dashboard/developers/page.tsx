@@ -111,8 +111,8 @@ export default function DevelopersPage() {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
     
-    // Sanitation
-    const cleanEmail = newEmail.trim();
+    // Sanitation: Email MUST be lowercase and trimmed to match login logic
+    const cleanEmail = newEmail.trim().toLowerCase();
     const cleanPassword = newPassword.trim();
 
     if (cleanPassword.length < 6) {
@@ -215,7 +215,7 @@ export default function DevelopersPage() {
 
       await updateDoc(userDocRef, {
         name: newName,
-        email: newEmail.trim(),
+        email: newEmail.trim().toLowerCase(),
         designation: newDesignation,
         teamId: finalTeamId,
         updatedAt: new Date().toISOString()

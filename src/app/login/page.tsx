@@ -29,34 +29,35 @@ export default function LoginPage() {
 
     setLoading(true);
     
-    // Normalization: Trim and Lowercase email to ensure consistency
+    // Normalization: Trim and Lowercase email to ensure 100% consistency with creation logic
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    console.log(`[Auth Debug] Attempting login for: ${cleanEmail}`);
+    console.log(`[Auth Debug] Step 1: Initiating login for normalized email: "${cleanEmail}"`);
 
     try {
       // 1. Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       const user = userCredential.user;
       
-      console.log(`[Auth Debug] Firebase Auth Success. UID: ${user.uid}`);
+      console.log(`[Auth Debug] Step 2: Firebase Auth Success. User UID: ${user.uid}`);
       
-      // 2. Fetch Role from Firestore using the AUTH UID
-      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      // 2. Fetch Role from Firestore using the AUTH UID as the document key
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
-        console.error(`[Auth Debug] No Firestore profile found for UID: ${user.uid}`);
+        console.error(`[Auth Debug] Error: No Firestore profile found at /users/${user.uid}`);
         toast({ 
           title: "Profile Synchronization Error", 
-          description: "Authenticated successfully, but your role profile was not found. Please contact an Administrator.", 
+          description: "Authenticated successfully, but your role profile was not found in the database. Please contact an Administrator.", 
           variant: "destructive" 
         });
         return;
       }
 
       const userData = userDoc.data();
-      console.log(`[Auth Debug] Profile Found. Role: ${userData.role}`);
+      console.log(`[Auth Debug] Step 3: Firestore Profile Resolved. Assigned Role: ${userData.role}`);
       
       toast({ 
         title: "Access Granted", 
@@ -70,11 +71,11 @@ export default function LoginPage() {
       let errorMessage = "Invalid email or password.";
       
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-        errorMessage = "Invalid credentials. Please verify your email and password.";
+        errorMessage = "Invalid credentials. Please verify your email and password. Ensure the account exists in the Firebase Console.";
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = "Access temporarily blocked due to multiple failed attempts. Try again later.";
-      } else if (error.code === 'auth/internal-error') {
-        errorMessage = "Authentication service is currently unavailable.";
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = "Network error. Please check your internet connection.";
       }
 
       toast({ 

@@ -88,8 +88,8 @@ export default function ClientsPage() {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
     
-    // Sanitation
-    const cleanEmail = newEmail.trim();
+    // Sanitation: Email MUST be lowercase and trimmed to match login logic
+    const cleanEmail = newEmail.trim().toLowerCase();
     const cleanPassword = newPassword.trim();
 
     if (cleanPassword.length < 6) {
@@ -161,7 +161,7 @@ export default function ClientsPage() {
     try {
       await updateDoc(userDocRef, {
         name: newName,
-        email: newEmail.trim(),
+        email: newEmail.trim().toLowerCase(),
         updatedAt: new Date().toISOString()
       });
 
