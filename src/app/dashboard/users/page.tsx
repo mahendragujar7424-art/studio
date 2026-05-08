@@ -3,14 +3,14 @@
 
 import * as React from 'react';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, query, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { ROLES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   UserPlus, 
@@ -21,7 +21,6 @@ import {
   AlertTriangle,
   UserCog,
   ShieldCheck,
-  Lock,
   Eye,
   EyeOff,
   Copy,
@@ -93,7 +92,7 @@ export default function UsersPage() {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
 
-    // Sanitation: Remove accidental whitespace
+    // Sanitation: Remove accidental whitespace which causes login failures
     const cleanEmail = newEmail.trim();
     const cleanPassword = newPassword.trim();
 
@@ -106,14 +105,15 @@ export default function UsersPage() {
     let secondaryApp;
 
     try {
+      // 1. Initialize secondary app to create user without disrupting Admin session
       secondaryApp = initializeApp(firebaseConfig, 'SecondaryAppUser_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
       
-      // 1. Create Auth Record
+      // 2. Create Auth Record
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, cleanPassword);
       const newUser = userCredential.user;
 
-      // 2. Prepare Firestore Record with EXACT UID mapping
+      // 3. Prepare Firestore Record with EXACT UID mapping
       const userData = {
         id: newUser.uid,
         name: newName,
@@ -123,7 +123,7 @@ export default function UsersPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      // 3. Synchronous write to ensure data is ready for immediate login
+      // 4. Critical: Await Firestore write so profile is ready for immediate login
       const userDocRef = doc(firestore, 'users', newUser.uid);
       await setDoc(userDocRef, userData);
 
@@ -134,11 +134,12 @@ export default function UsersPage() {
 
       toast({ 
         title: "Account Provisioned", 
-        description: `Credentials created for ${newName}. Account is now active and synced.` 
+        description: `Credentials created for ${newName}. Account is active.` 
       });
       setIsCreateOpen(false);
       resetForm();
     } catch (error: any) {
+      console.error("User Provisioning Error:", error);
       toast({ title: "Provisioning Error", description: error.message, variant: "destructive" });
     } finally {
       if (secondaryApp) await deleteApp(secondaryApp);
@@ -155,11 +156,7 @@ export default function UsersPage() {
         description: `Recovery instructions were sent to ${email}.` 
       });
     } catch (error: any) {
-      toast({ 
-        title: "Reset Error", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast({ title: "Reset Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -207,11 +204,7 @@ export default function UsersPage() {
     if (userToDelete.role === ROLES.ADMIN) {
       const adminCount = users.filter(u => u.role === ROLES.ADMIN).length;
       if (adminCount <= 1) {
-        toast({ 
-          title: "Critical Restriction", 
-          description: "Cannot remove the final Administrator account.", 
-          variant: "destructive" 
-        });
+        toast({ title: "Critical Restriction", description: "Cannot remove final Administrator.", variant: "destructive" });
         setUserToDelete(null);
         return;
       }
@@ -244,8 +237,8 @@ export default function UsersPage() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold font-headline tracking-tight text-gradient">Member Management</h1>
-          <p className="text-muted-foreground mt-2 text-lg">Control organizational access and technical role distribution.</p>
+          <h1 className="text-4xl font-bold font-headline tracking-tight">Member Management</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Control organizational access and technical roles.</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
@@ -271,14 +264,14 @@ export default function UsersPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase">Full Name</Label>
-                <Input placeholder="John Doe" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl" />
+                <Input placeholder="John Doe" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl border-2" />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase">Work Email</Label>
-                <Input type="email" placeholder="john@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
+                <Input type="email" placeholder="john@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl border-2" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Manual Password Provisioning</Label>
+                <Label className="text-xs font-bold uppercase">Password Provisioning</Label>
                 <div className="relative">
                   <Input 
                     type={showPassword ? "text" : "password"} 
@@ -286,7 +279,7 @@ export default function UsersPage() {
                     onChange={e => setNewPassword(e.target.value)} 
                     placeholder="Set custom password"
                     required 
-                    className="h-12 rounded-xl pr-24" 
+                    className="h-12 rounded-xl pr-24 border-2" 
                   />
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                     <button type="button" onClick={copyPassword} className="p-2 text-muted-foreground hover:text-primary transition-colors">
@@ -297,7 +290,7 @@ export default function UsersPage() {
                     </button>
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground italic">Important: Admins set the initial password. Copy and share it with the member. It is hashed upon saving.</p>
+                <p className="text-[10px] text-muted-foreground italic">Important: Trimming whitespace is automatic. Copy this key for the user.</p>
               </div>
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
@@ -423,7 +416,7 @@ export default function UsersPage() {
                 <span className="text-xs font-bold uppercase tracking-widest">Access Recovery</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Admins cannot directly view current passwords. To force a password update, send a secure reset link to the member's work email.
+                Admins cannot directly view current passwords. To update access, send a secure reset link to the member's work email.
               </p>
               <Button 
                 variant="outline" 
@@ -448,7 +441,7 @@ export default function UsersPage() {
             </div>
             <AlertDialogTitle className="text-2xl font-bold">Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you certain you want to revoke all workspace access for <span className="font-bold text-foreground">{userToDelete?.name}</span>? This action cannot be undone.
+              Are you certain you want to revoke all workspace access for <span className="font-bold text-foreground">{userToDelete?.name}</span>? This action is final.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 mt-4">

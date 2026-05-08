@@ -3,15 +3,15 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn, Info, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
+import { LogIn, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function LoginPage() {
@@ -20,14 +20,16 @@ export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
   const firestore = useFirestore();
+  const auth = useAuth();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth || !firestore) return;
+
     setLoading(true);
-    const auth = getAuth();
     
-    // Sanitation: Trim common whitespace
+    // Sanitation: Remove accidental whitespace which causes auth/invalid-credential
     const cleanEmail = email.trim();
     const cleanPassword = password.trim();
 
@@ -42,7 +44,7 @@ export default function LoginPage() {
       if (!userDoc.exists()) {
         toast({ 
           title: "Profile Missing", 
-          description: "Authenticated successfully, but no database profile found. Contact your system administrator.", 
+          description: "Auth successful, but no Firestore record found. Ensure the UID matches.", 
           variant: "destructive" 
         });
         return;
@@ -50,7 +52,6 @@ export default function LoginPage() {
 
       const userData = userDoc.data();
       
-      // 3. Success Feedback and Redirection
       toast({ 
         title: "Access Granted", 
         description: `Welcome back, ${userData.name}.` 
@@ -61,10 +62,13 @@ export default function LoginPage() {
       console.error("Login error:", error);
       
       let errorMessage = "Invalid credentials provided.";
+      // auth/invalid-credential is the generic error for both wrong email/password or disabled provider
       if (error.code === 'auth/invalid-credential') {
-        errorMessage = "Email or password incorrect. Ensure you've created an account in the Firebase Console Auth tab if this is your first time.";
+        errorMessage = "Email or password incorrect. Please verify credentials or check if the Email/Password provider is enabled in your Firebase Console.";
       } else if (error.code === 'auth/user-not-found') {
         errorMessage = "No account exists with this email.";
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Access temporarily blocked due to many failed attempts. Try again later.";
       }
 
       toast({ 
@@ -91,7 +95,7 @@ export default function LoginPage() {
           <ShieldCheck className="h-4 w-4 text-primary" />
           <AlertTitle className="text-xs font-bold uppercase tracking-wider text-primary">Secure Authentication</AlertTitle>
           <AlertDescription className="text-xs text-muted-foreground">
-            Role-based credentials are encrypted and verified against organizational security protocols.
+            Identity verification is processed through organizational security protocols.
           </AlertDescription>
         </Alert>
 
@@ -100,7 +104,7 @@ export default function LoginPage() {
             <CardTitle className="text-2xl font-bold flex items-center justify-center gap-2">
               <LogIn className="h-5 w-5 text-primary" /> Member Login
             </CardTitle>
-            <CardDescription>Secure access to the CRM technical environment.</CardDescription>
+            <CardDescription>Secure access to the workspace environment.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -111,7 +115,7 @@ export default function LoginPage() {
                   placeholder="name@company.com" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
-                  className="h-14 rounded-2xl" 
+                  className="h-14 rounded-2xl border-2" 
                   required 
                 />
               </div>
@@ -122,7 +126,7 @@ export default function LoginPage() {
                   placeholder="••••••••" 
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)} 
-                  className="h-14 rounded-2xl" 
+                  className="h-14 rounded-2xl border-2" 
                   required 
                 />
               </div>
@@ -135,9 +139,8 @@ export default function LoginPage() {
           <CardFooter className="pt-6 border-t flex flex-col gap-4">
              <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                <AlertCircle className="h-3 w-3" />
-               First login? Ensure Admin is created in Auth Console.
+               Forgot your key? Contact your System Administrator.
              </div>
-            <p className="text-[10px] font-bold text-center uppercase text-muted-foreground tracking-[0.2em]">Forgot your key? Contact your Admin</p>
           </CardFooter>
         </Card>
       </div>
