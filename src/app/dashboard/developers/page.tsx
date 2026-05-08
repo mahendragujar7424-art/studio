@@ -320,7 +320,7 @@ export default function DevelopersPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {DESIGNATIONS.map(d => (
-                        <SelectItem key={d} value={d}>{d}</SelectItem> design
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
