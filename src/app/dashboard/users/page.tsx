@@ -23,7 +23,9 @@ import {
   ShieldCheck,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  Copy,
+  Check
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -60,6 +62,7 @@ export default function UsersPage() {
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
   
   const [userToDelete, setUserToDelete] = React.useState<{ id: string, name: string, role: string } | null>(null);
   const [editingUser, setEditingUser] = React.useState<any>(null);
@@ -91,11 +94,13 @@ export default function UsersPage() {
     let secondaryApp;
 
     try {
+      // Provision user in Firebase Auth without logging out admin
       secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword);
       const newUser = userCredential.user;
 
+      // Provision user profile in Firestore
       const userData = {
         id: newUser.uid,
         name: newName,
@@ -113,7 +118,10 @@ export default function UsersPage() {
         setDocumentNonBlocking(adminRoleRef, { id: newUser.uid, createdAt: new Date().toISOString() }, { merge: false });
       }
 
-      toast({ title: "User Provisioned", description: `${newName} has been added to the workspace.` });
+      toast({ 
+        title: "Account Provisioned", 
+        description: `Credentials created for ${newName}. Password set successfully.` 
+      });
       setIsCreateOpen(false);
       resetForm();
     } catch (error: any) {
@@ -122,6 +130,19 @@ export default function UsersPage() {
       if (secondaryApp) await deleteApp(secondaryApp);
       setIsSubmitting(false);
     }
+  };
+
+  const copyPassword = () => {
+    navigator.clipboard.writeText(newPassword);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const resetForm = () => {
+    setNewName('');
+    setNewEmail('');
+    setNewPassword('123456');
+    setNewRole(ROLES.CLIENT);
   };
 
   const handleUpdateUserRole = () => {
@@ -143,13 +164,6 @@ export default function UsersPage() {
     toast({ title: "Permissions Updated", description: "Role-based access has been modified." });
     setIsEditOpen(false);
     setEditingUser(null);
-  };
-
-  const resetForm = () => {
-    setNewName('');
-    setNewEmail('');
-    setNewPassword('123456');
-    setNewRole(ROLES.CLIENT);
   };
 
   const confirmDelete = () => {
@@ -236,16 +250,22 @@ export default function UsersPage() {
                     value={newPassword} 
                     onChange={e => setNewPassword(e.target.value)} 
                     required 
-                    className="h-12 rounded-xl pr-12" 
+                    className="h-12 rounded-xl pr-24" 
                   />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <button type="button" onClick={copyPassword} className="p-2 text-muted-foreground hover:text-primary">
+                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-2 text-muted-foreground hover:text-primary">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
+                <p className="text-[10px] text-muted-foreground italic">Note: Password is sent only to Auth. For security, it cannot be read back later.</p>
               </div>
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
-                  {isSubmitting ? "Provisioning..." : "Activate Account"}
+                  {isSubmitting ? "Provisioning Auth..." : "Activate Account"}
                 </Button>
               </DialogFooter>
             </form>

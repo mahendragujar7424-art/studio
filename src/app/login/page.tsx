@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -10,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn, Info } from 'lucide-react';
+import { LogIn, Info, ShieldCheck, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function LoginPage() {
@@ -27,21 +28,38 @@ export default function LoginPage() {
     const auth = getAuth();
     
     try {
+      // 1. Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
+      // 2. Fetch Role from Firestore
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       
       if (!userDoc.exists()) {
-        toast({ title: "Profile Error", description: "User profile not found in database.", variant: "destructive" });
+        toast({ 
+          title: "Profile Missing", 
+          description: "Authenticated successfully, but no database profile found.", 
+          variant: "destructive" 
+        });
         return;
       }
 
       const userData = userDoc.data();
-      toast({ title: "Authorized", description: `Welcome back, ${userData.name}.` });
+      
+      // 3. Success Feedback and Redirection
+      toast({ 
+        title: "Access Granted", 
+        description: `Welcome back, ${userData.name}. Role: ${userData.role}` 
+      });
+      
+      // The DashboardLayout handles individual role views at the /dashboard root
       router.push('/dashboard');
     } catch (error: any) {
-      toast({ title: "Access Error", description: error.message, variant: "destructive" });
+      toast({ 
+        title: "Authentication Failed", 
+        description: error.message || "Invalid credentials provided.", 
+        variant: "destructive" 
+      });
     } finally {
       setLoading(false);
     }
@@ -58,10 +76,10 @@ export default function LoginPage() {
         </div>
 
         <Alert className="bg-primary/5 border-primary/20 rounded-2xl">
-          <Info className="h-4 w-4 text-primary" />
-          <AlertTitle className="text-xs font-bold uppercase tracking-wider text-primary">Invitation Only</AlertTitle>
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <AlertTitle className="text-xs font-bold uppercase tracking-wider text-primary">Secure Authentication</AlertTitle>
           <AlertDescription className="text-xs text-muted-foreground">
-            Access is restricted to authorized team members. Roles are assigned by administrators.
+            Role-based credentials are encrypted and verified against organizational security protocols.
           </AlertDescription>
         </Alert>
 
@@ -70,25 +88,40 @@ export default function LoginPage() {
             <CardTitle className="text-2xl font-bold flex items-center justify-center gap-2">
               <LogIn className="h-5 w-5 text-primary" /> Member Login
             </CardTitle>
-            <CardDescription>Enter your credentials to access the workspace.</CardDescription>
+            <CardDescription>Secure access to the CRM technical environment.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Email</Label>
-                <Input type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-14 rounded-2xl" required />
+                <Label className="text-xs font-bold uppercase">Official Email</Label>
+                <Input 
+                  type="email" 
+                  placeholder="name@company.com" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  className="h-14 rounded-2xl" 
+                  required 
+                />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Password</Label>
-                <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="h-14 rounded-2xl" required />
+                <Label className="text-xs font-bold uppercase">Private Password</Label>
+                <Input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  className="h-14 rounded-2xl" 
+                  required 
+                />
               </div>
               <Button type="submit" className="w-full h-14 rounded-2xl font-bold shadow-xl shadow-primary/20" disabled={loading}>
-                {loading ? "Authenticating..." : "Enter Workspace"}
+                {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
+                {loading ? "Verifying..." : "Enter Workspace"}
               </Button>
             </form>
           </CardContent>
           <CardFooter className="pt-6 border-t flex flex-col gap-4">
-            <p className="text-[10px] font-bold text-center uppercase text-muted-foreground tracking-[0.2em]">Contact Admin for access</p>
+            <p className="text-[10px] font-bold text-center uppercase text-muted-foreground tracking-[0.2em]">Forgot your key? Contact your Admin</p>
           </CardFooter>
         </Card>
       </div>
