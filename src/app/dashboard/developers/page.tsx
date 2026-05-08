@@ -3,8 +3,8 @@
 
 import * as React from 'react';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, query, where, arrayUnion, arrayRemove, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
@@ -28,7 +28,8 @@ import {
   Mail,
   Copy,
   Check,
-  Key
+  Key,
+  Loader2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -109,7 +110,12 @@ export default function DevelopersPage() {
   const handleCreateDeveloper = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
-    if (newPassword.length < 6) {
+    
+    // Sanitation
+    const cleanEmail = newEmail.trim();
+    const cleanPassword = newPassword.trim();
+
+    if (cleanPassword.length < 6) {
       toast({ title: "Validation Error", description: "Password must be at least 6 characters.", variant: "destructive" });
       return;
     }
@@ -118,15 +124,19 @@ export default function DevelopersPage() {
     let secondaryApp;
 
     try {
+      // 1. Initialize secondary app to create user without logging out Admin
       secondaryApp = initializeApp(firebaseConfig, 'SecondaryAppDev_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword);
+      
+      // 2. Create Auth Record
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, cleanPassword);
       const newUser = userCredential.user;
 
+      // 3. Prepare Firestore Record with EXACT UID mapping
       const userData = {
         id: newUser.uid,
         name: newName,
-        email: newEmail,
+        email: cleanEmail,
         role: ROLES.DEVELOPER,
         designation: newDesignation,
         teamId: newTeamId === 'none' ? null : newTeamId,
@@ -134,24 +144,26 @@ export default function DevelopersPage() {
         updatedAt: new Date().toISOString(),
       };
 
+      // 4. Critical: Await Firestore write to ensure synchronization
       const userDocRef = doc(firestore, 'users', newUser.uid);
-      setDocumentNonBlocking(userDocRef, userData, { merge: false });
+      await setDoc(userDocRef, userData);
 
       if (newTeamId !== 'none') {
         const teamRef = doc(firestore, 'teams', newTeamId);
-        updateDocumentNonBlocking(teamRef, {
+        await updateDoc(teamRef, {
           developerIds: arrayUnion(newUser.uid)
         });
       }
 
       toast({ 
         title: "Developer Provisioned", 
-        description: `${newName} has been added. Credentials are now active.` 
+        description: `${newName} has been added. Credentials are now active and synchronized.` 
       });
       
       setIsCreateOpen(false);
       resetForm();
     } catch (error: any) {
+      console.error("Provisioning error:", error);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       if (secondaryApp) await deleteApp(secondaryApp);
@@ -173,44 +185,48 @@ export default function DevelopersPage() {
   };
 
   const copyPassword = () => {
-    navigator.clipboard.writeText(newPassword);
+    navigator.clipboard.writeText(newPassword.trim());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleUpdateDeveloper = () => {
+  const handleUpdateDeveloper = async () => {
     if (!firestore || !editingDev) return;
     const userDocRef = doc(firestore, 'users', editingDev.id);
 
     const oldTeamId = editingDev.teamId;
     const finalTeamId = newTeamId === 'none' ? null : newTeamId;
 
-    if (oldTeamId !== finalTeamId) {
-      if (oldTeamId) {
-        const oldTeamRef = doc(firestore, 'teams', oldTeamId);
-        updateDocumentNonBlocking(oldTeamRef, {
-          developerIds: arrayRemove(editingDev.id)
-        });
+    try {
+      if (oldTeamId !== finalTeamId) {
+        if (oldTeamId) {
+          const oldTeamRef = doc(firestore, 'teams', oldTeamId);
+          await updateDoc(oldTeamRef, {
+            developerIds: arrayRemove(editingDev.id)
+          });
+        }
+        if (finalTeamId) {
+          const newTeamRef = doc(firestore, 'teams', finalTeamId);
+          await updateDoc(newTeamRef, {
+            developerIds: arrayUnion(editingDev.id)
+          });
+        }
       }
-      if (finalTeamId) {
-        const newTeamRef = doc(firestore, 'teams', finalTeamId);
-        updateDocumentNonBlocking(newTeamRef, {
-          developerIds: arrayUnion(editingDev.id)
-        });
-      }
+
+      await updateDoc(userDocRef, {
+        name: newName,
+        email: newEmail.trim(),
+        designation: newDesignation,
+        teamId: finalTeamId,
+        updatedAt: new Date().toISOString()
+      });
+
+      toast({ title: "Profile Updated", description: "Developer details have been refreshed." });
+      setIsEditOpen(false);
+      resetForm();
+    } catch (e: any) {
+      toast({ title: "Update Failed", description: e.message, variant: "destructive" });
     }
-
-    updateDocumentNonBlocking(userDocRef, {
-      name: newName,
-      email: newEmail,
-      designation: newDesignation,
-      teamId: finalTeamId,
-      updatedAt: new Date().toISOString()
-    });
-
-    toast({ title: "Profile Updated", description: "Developer details have been refreshed." });
-    setIsEditOpen(false);
-    resetForm();
   };
 
   const resetForm = () => {
@@ -304,7 +320,7 @@ export default function DevelopersPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {DESIGNATIONS.map(d => (
-                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                        <SelectItem key={d} value={d}>{d}</SelectItem> design
                       ))}
                     </SelectContent>
                   </Select>
@@ -326,7 +342,9 @@ export default function DevelopersPage() {
               </div>
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
-                  {isSubmitting ? "Provisioning..." : "Create Developer"}
+                  {isSubmitting ? (
+                    <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Syncing Auth...</>
+                  ) : "Create Developer"}
                 </Button>
               </DialogFooter>
             </form>

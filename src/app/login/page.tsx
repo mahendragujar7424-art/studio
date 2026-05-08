@@ -27,18 +27,22 @@ export default function LoginPage() {
     setLoading(true);
     const auth = getAuth();
     
+    // Trim credentials to avoid common copy-paste issues
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
     try {
       // 1. Authenticate with Firebase Auth
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       const user = userCredential.user;
       
-      // 2. Fetch Role from Firestore
+      // 2. Fetch Role from Firestore using the AUTH UID
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       
       if (!userDoc.exists()) {
         toast({ 
           title: "Profile Missing", 
-          description: "Authenticated successfully, but no database profile found.", 
+          description: "Authenticated successfully, but no database profile found. Contact Admin.", 
           variant: "destructive" 
         });
         return;
@@ -52,9 +56,9 @@ export default function LoginPage() {
         description: `Welcome back, ${userData.name}. Role: ${userData.role}` 
       });
       
-      // The DashboardLayout handles individual role views at the /dashboard root
       router.push('/dashboard');
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({ 
         title: "Authentication Failed", 
         description: error.message || "Invalid credentials provided.", 

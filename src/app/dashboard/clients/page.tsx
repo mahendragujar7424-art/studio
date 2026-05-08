@@ -3,8 +3,8 @@
 
 import * as React from 'react';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
-import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, query, where, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
@@ -25,7 +25,8 @@ import {
   Mail,
   Copy,
   Check,
-  Key
+  Key,
+  Loader2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -86,7 +87,12 @@ export default function ClientsPage() {
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
-    if (newPassword.length < 6) {
+    
+    // Sanitation
+    const cleanEmail = newEmail.trim();
+    const cleanPassword = newPassword.trim();
+
+    if (cleanPassword.length < 6) {
       toast({ title: "Validation Error", description: "Password must be at least 6 characters.", variant: "destructive" });
       return;
     }
@@ -97,20 +103,23 @@ export default function ClientsPage() {
     try {
       secondaryApp = initializeApp(firebaseConfig, 'SecondaryAppClient_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword);
+      
+      // 1. Create Auth Record
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, cleanPassword);
       const newUser = userCredential.user;
 
+      // 2. Map UID exactly to Firestore Document
       const userData = {
         id: newUser.uid,
         name: newName,
-        email: newEmail,
+        email: cleanEmail,
         role: ROLES.CLIENT,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
       const userDocRef = doc(firestore, 'users', newUser.uid);
-      setDocumentNonBlocking(userDocRef, userData, { merge: false });
+      await setDoc(userDocRef, userData);
 
       toast({ 
         title: "Client Provisioned", 
@@ -140,24 +149,28 @@ export default function ClientsPage() {
   };
 
   const copyPassword = () => {
-    navigator.clipboard.writeText(newPassword);
+    navigator.clipboard.writeText(newPassword.trim());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleUpdateClient = () => {
+  const handleUpdateClient = async () => {
     if (!firestore || !editingClient) return;
     const userDocRef = doc(firestore, 'users', editingClient.id);
 
-    updateDocumentNonBlocking(userDocRef, {
-      name: newName,
-      email: newEmail,
-      updatedAt: new Date().toISOString()
-    });
+    try {
+      await updateDoc(userDocRef, {
+        name: newName,
+        email: newEmail.trim(),
+        updatedAt: new Date().toISOString()
+      });
 
-    toast({ title: "Profile Updated", description: "Client details have been refreshed." });
-    setIsEditOpen(false);
-    resetForm();
+      toast({ title: "Profile Updated", description: "Client details have been refreshed." });
+      setIsEditOpen(false);
+      resetForm();
+    } catch (e: any) {
+      toast({ title: "Update Failed", description: e.message, variant: "destructive" });
+    }
   };
 
   const resetForm = () => {
@@ -241,7 +254,9 @@ export default function ClientsPage() {
               </div>
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
-                  {isSubmitting ? "Provisioning..." : "Activate Client Account"}
+                  {isSubmitting ? (
+                    <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating Auth...</>
+                  ) : "Activate Client Account"}
                 </Button>
               </DialogFooter>
             </form>
