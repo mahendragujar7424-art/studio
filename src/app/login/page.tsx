@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn, Info, ShieldCheck, Loader2 } from 'lucide-react';
+import { LogIn, Info, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function LoginPage() {
@@ -27,7 +27,7 @@ export default function LoginPage() {
     setLoading(true);
     const auth = getAuth();
     
-    // Trim credentials to avoid common copy-paste issues
+    // Sanitation: Trim common whitespace
     const cleanEmail = email.trim();
     const cleanPassword = password.trim();
 
@@ -42,7 +42,7 @@ export default function LoginPage() {
       if (!userDoc.exists()) {
         toast({ 
           title: "Profile Missing", 
-          description: "Authenticated successfully, but no database profile found. Contact Admin.", 
+          description: "Authenticated successfully, but no database profile found. Contact your system administrator.", 
           variant: "destructive" 
         });
         return;
@@ -53,15 +53,23 @@ export default function LoginPage() {
       // 3. Success Feedback and Redirection
       toast({ 
         title: "Access Granted", 
-        description: `Welcome back, ${userData.name}. Role: ${userData.role}` 
+        description: `Welcome back, ${userData.name}.` 
       });
       
       router.push('/dashboard');
     } catch (error: any) {
       console.error("Login error:", error);
+      
+      let errorMessage = "Invalid credentials provided.";
+      if (error.code === 'auth/invalid-credential') {
+        errorMessage = "Email or password incorrect. Ensure you've created an account in the Firebase Console Auth tab if this is your first time.";
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = "No account exists with this email.";
+      }
+
       toast({ 
         title: "Authentication Failed", 
-        description: error.message || "Invalid credentials provided.", 
+        description: errorMessage, 
         variant: "destructive" 
       });
     } finally {
@@ -125,6 +133,10 @@ export default function LoginPage() {
             </form>
           </CardContent>
           <CardFooter className="pt-6 border-t flex flex-col gap-4">
+             <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+               <AlertCircle className="h-3 w-3" />
+               First login? Ensure Admin is created in Auth Console.
+             </div>
             <p className="text-[10px] font-bold text-center uppercase text-muted-foreground tracking-[0.2em]">Forgot your key? Contact your Admin</p>
           </CardFooter>
         </Card>

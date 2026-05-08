@@ -3,8 +3,8 @@
 
 import * as React from 'react';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
-import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, query, where, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
@@ -27,7 +27,8 @@ import {
   Copy,
   Check,
   Mail,
-  Key
+  Key,
+  Loader2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -91,7 +92,12 @@ export default function UsersPage() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
-    if (newPassword.length < 6) {
+
+    // Sanitation: Remove accidental whitespace
+    const cleanEmail = newEmail.trim();
+    const cleanPassword = newPassword.trim();
+
+    if (cleanPassword.length < 6) {
       toast({ title: "Validation Error", description: "Password must be at least 6 characters.", variant: "destructive" });
       return;
     }
@@ -100,31 +106,35 @@ export default function UsersPage() {
     let secondaryApp;
 
     try {
-      secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp_' + Date.now());
+      secondaryApp = initializeApp(firebaseConfig, 'SecondaryAppUser_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword);
+      
+      // 1. Create Auth Record
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, cleanPassword);
       const newUser = userCredential.user;
 
+      // 2. Prepare Firestore Record with EXACT UID mapping
       const userData = {
         id: newUser.uid,
         name: newName,
-        email: newEmail,
+        email: cleanEmail,
         role: newRole,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
+      // 3. Synchronous write to ensure data is ready for immediate login
       const userDocRef = doc(firestore, 'users', newUser.uid);
-      setDocumentNonBlocking(userDocRef, userData, { merge: false });
+      await setDoc(userDocRef, userData);
 
       if (newRole === ROLES.ADMIN) {
         const adminRoleRef = doc(firestore, 'roles_admin', newUser.uid);
-        setDocumentNonBlocking(adminRoleRef, { id: newUser.uid, createdAt: new Date().toISOString() }, { merge: false });
+        await setDoc(adminRoleRef, { id: newUser.uid, createdAt: new Date().toISOString() });
       }
 
       toast({ 
         title: "Account Provisioned", 
-        description: `Credentials created for ${newName}. Account is now active.` 
+        description: `Credentials created for ${newName}. Account is now active and synced.` 
       });
       setIsCreateOpen(false);
       resetForm();
@@ -154,7 +164,7 @@ export default function UsersPage() {
   };
 
   const copyPassword = () => {
-    navigator.clipboard.writeText(newPassword);
+    navigator.clipboard.writeText(newPassword.trim());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -166,25 +176,29 @@ export default function UsersPage() {
     setNewRole(ROLES.CLIENT);
   };
 
-  const handleUpdateUserRole = () => {
+  const handleUpdateUserRole = async () => {
     if (!firestore || !editingUser) return;
     const userDocRef = doc(firestore, 'users', editingUser.id);
     const adminRoleRef = doc(firestore, 'roles_admin', editingUser.id);
 
-    updateDocumentNonBlocking(userDocRef, {
-      role: newRole,
-      updatedAt: new Date().toISOString()
-    });
+    try {
+      await updateDoc(userDocRef, {
+        role: newRole,
+        updatedAt: new Date().toISOString()
+      });
 
-    if (newRole === ROLES.ADMIN) {
-      setDocumentNonBlocking(adminRoleRef, { id: editingUser.id, createdAt: new Date().toISOString() }, { merge: true });
-    } else {
-      deleteDocumentNonBlocking(adminRoleRef);
+      if (newRole === ROLES.ADMIN) {
+        await setDoc(adminRoleRef, { id: editingUser.id, createdAt: new Date().toISOString() }, { merge: true });
+      } else {
+        await deleteDoc(adminRoleRef);
+      }
+
+      toast({ title: "Permissions Updated", description: "Role-based access has been modified." });
+      setIsEditOpen(false);
+      setEditingUser(null);
+    } catch (e: any) {
+      toast({ title: "Update Failed", description: e.message, variant: "destructive" });
     }
-
-    toast({ title: "Permissions Updated", description: "Role-based access has been modified." });
-    setIsEditOpen(false);
-    setEditingUser(null);
   };
 
   const confirmDelete = () => {
@@ -287,7 +301,7 @@ export default function UsersPage() {
               </div>
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
-                  {isSubmitting ? "Provisioning Auth..." : "Activate Account"}
+                  {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Provisioning...</> : "Activate Account"}
                 </Button>
               </DialogFooter>
             </form>
@@ -432,7 +446,7 @@ export default function UsersPage() {
             <div className="h-12 w-12 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <AlertDialogTitle className="text-2xl font-bold">Confirm Removal</AlertDialogTitle>
+            <AlertDialogTitle className="text-2xl font-bold">Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
               Are you certain you want to revoke all workspace access for <span className="font-bold text-foreground">{userToDelete?.name}</span>? This action cannot be undone.
             </AlertDialogDescription>
