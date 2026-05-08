@@ -6,7 +6,7 @@ import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@
 import { collection, doc, query, where } from 'firebase/firestore';
 import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { ROLES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,8 @@ import {
   Eye,
   EyeOff,
   Copy,
-  Check
+  Check,
+  Mail
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -69,7 +70,7 @@ export default function UsersPage() {
 
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
-  const [newPassword, setNewPassword] = React.useState('123456');
+  const [newPassword, setNewPassword] = React.useState('');
   const [newRole, setNewRole] = React.useState<string>(ROLES.CLIENT);
 
   const currentUserRef = useMemoFirebase(() => {
@@ -89,18 +90,20 @@ export default function UsersPage() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
+    if (newPassword.length < 6) {
+      toast({ title: "Validation Error", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
 
     setIsSubmitting(true);
     let secondaryApp;
 
     try {
-      // Provision user in Firebase Auth without logging out admin
       secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp_' + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword);
       const newUser = userCredential.user;
 
-      // Provision user profile in Firestore
       const userData = {
         id: newUser.uid,
         name: newName,
@@ -120,7 +123,7 @@ export default function UsersPage() {
 
       toast({ 
         title: "Account Provisioned", 
-        description: `Credentials created for ${newName}. Password set successfully.` 
+        description: `Credentials created for ${newName} with your custom password.` 
       });
       setIsCreateOpen(false);
       resetForm();
@@ -129,6 +132,23 @@ export default function UsersPage() {
     } finally {
       if (secondaryApp) await deleteApp(secondaryApp);
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSendResetEmail = async (email: string) => {
+    const auth = getAuth();
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ 
+        title: "Reset Link Sent", 
+        description: `An official password recovery email was sent to ${email}.` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: "Reset Error", 
+        description: error.message, 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -141,7 +161,7 @@ export default function UsersPage() {
   const resetForm = () => {
     setNewName('');
     setNewEmail('');
-    setNewPassword('123456');
+    setNewPassword('');
     setNewRole(ROLES.CLIENT);
   };
 
@@ -243,12 +263,13 @@ export default function UsersPage() {
                 <Input type="email" placeholder="john@company.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Initial Password</Label>
+                <Label className="text-xs font-bold uppercase">Unique Initial Password</Label>
                 <div className="relative">
                   <Input 
                     type={showPassword ? "text" : "password"} 
                     value={newPassword} 
                     onChange={e => setNewPassword(e.target.value)} 
+                    placeholder="Enter custom password"
                     required 
                     className="h-12 rounded-xl pr-24" 
                   />
@@ -261,7 +282,7 @@ export default function UsersPage() {
                     </button>
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground italic">Note: Password is sent only to Auth. For security, it cannot be read back later.</p>
+                <p className="text-[10px] text-muted-foreground italic">Important: You must set a custom password. This will be encrypted and cannot be retrieved later.</p>
               </div>
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full h-14 rounded-2xl font-bold" disabled={isSubmitting}>
@@ -322,6 +343,15 @@ export default function UsersPage() {
                   <div className="flex justify-end gap-2">
                     {u.id !== currentUser?.uid && (
                       <>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5"
+                          onClick={() => handleSendResetEmail(u.email)}
+                          title="Send Password Reset Email"
+                        >
+                          <Mail className="h-5 w-5" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 

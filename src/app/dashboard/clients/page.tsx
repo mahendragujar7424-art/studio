@@ -6,7 +6,7 @@ import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@
 import { collection, doc, query, where } from 'firebase/firestore';
 import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { ROLES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,10 @@ import {
   Edit,
   UserCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  Mail,
+  Copy,
+  Check
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -61,8 +64,9 @@ export default function ClientsPage() {
 
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
-  const [newPassword, setNewPassword] = React.useState('123456');
+  const [newPassword, setNewPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
 
   const currentUserRef = useMemoFirebase(() => {
     if (!firestore || !currentUser?.uid) return null;
@@ -81,6 +85,10 @@ export default function ClientsPage() {
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || profile?.role !== ROLES.ADMIN) return;
+    if (newPassword.length < 6) {
+      toast({ title: "Validation Error", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
 
     setIsSubmitting(true);
     let secondaryApp;
@@ -103,7 +111,10 @@ export default function ClientsPage() {
       const userDocRef = doc(firestore, 'users', newUser.uid);
       setDocumentNonBlocking(userDocRef, userData, { merge: false });
 
-      toast({ title: "Client Account Created", description: `${newName} has been granted portal access.` });
+      toast({ 
+        title: "Client Account Created", 
+        description: `${newName} has been granted portal access with your custom password.` 
+      });
       setIsCreateOpen(false);
       resetForm();
     } catch (error: any) {
@@ -112,6 +123,25 @@ export default function ClientsPage() {
       if (secondaryApp) await deleteApp(secondaryApp);
       setIsSubmitting(false);
     }
+  };
+
+  const handleSendResetEmail = async (email: string) => {
+    const auth = getAuth();
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ 
+        title: "Reset Link Sent", 
+        description: `Recovery instructions were sent to ${email}.` 
+      });
+    } catch (error: any) {
+      toast({ title: "Reset Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const copyPassword = () => {
+    navigator.clipboard.writeText(newPassword);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleUpdateClient = () => {
@@ -132,7 +162,7 @@ export default function ClientsPage() {
   const resetForm = () => {
     setNewName('');
     setNewEmail('');
-    setNewPassword('123456');
+    setNewPassword('');
     setEditingClient(null);
   };
 
@@ -180,25 +210,31 @@ export default function ClientsPage() {
             <form onSubmit={handleCreateClient} className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase">Client Entity / Contact</Label>
-                <input placeholder="Acme Corp / John Smith" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 w-full rounded-xl border px-3" />
+                <Input placeholder="Acme Corp / John Smith" value={newName} onChange={e => setNewName(e.target.value)} required className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase">Official Email</Label>
-                <input type="email" placeholder="john@client.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 w-full rounded-xl border px-3" />
+                <Input type="email" placeholder="john@client.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required className="h-12 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Secure Password</Label>
+                <Label className="text-xs font-bold uppercase">Unique Initial Password</Label>
                 <div className="relative">
-                  <input 
+                  <Input 
                     type={showPassword ? "text" : "password"} 
                     value={newPassword} 
                     onChange={e => setNewPassword(e.target.value)} 
+                    placeholder="Enter custom password"
                     required 
-                    className="h-12 w-full rounded-xl border px-3 pr-12" 
+                    className="h-12 rounded-xl pr-24" 
                   />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <button type="button" onClick={copyPassword} className="p-2 text-muted-foreground hover:text-primary">
+                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-2 text-muted-foreground hover:text-primary">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
               <DialogFooter className="pt-4">
@@ -253,7 +289,21 @@ export default function ClientsPage() {
                 </TableCell>
                 <TableCell className="px-8 text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" className="rounded-full hover:text-primary" onClick={() => { setEditingClient(u); setNewName(u.name); setNewEmail(u.email); setIsEditOpen(true); }}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full hover:text-primary" 
+                      onClick={() => handleSendResetEmail(u.email)}
+                      title="Send Reset Password Email"
+                    >
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full hover:text-primary" 
+                      onClick={() => { setEditingClient(u); setNewName(u.name); setNewEmail(u.email); setIsEditOpen(true); }}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button 
@@ -280,13 +330,12 @@ export default function ClientsPage() {
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase">Updated Name</Label>
-              <input value={newName} onChange={e => setNewName(e.target.value)} className="h-12 w-full rounded-xl border px-3" />
+              <Input value={newName} onChange={e => setNewName(e.target.value)} className="h-12 rounded-xl" />
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase">Updated Email</Label>
-              <input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="h-12 w-full rounded-xl border px-3" />
+              <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="h-12 rounded-xl" />
             </div>
-            <p className="text-[10px] text-muted-foreground bg-secondary/10 p-4 rounded-lg">Note: Modifying the email in the profile does not update the authentication email.</p>
           </div>
           <DialogFooter className="pt-4">
             <Button onClick={handleUpdateClient} className="w-full h-14 rounded-2xl font-bold">Update Client Information</Button>
